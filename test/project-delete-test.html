@@ -1,0 +1,118 @@
+<!doctype html>
+<!--
+@license
+Copyright (c) 2015 The Polymer Project Authors. All rights reserved.
+This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+Code distributed by Google as part of the polymer project is also
+subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+-->
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, minimum-scale=1.0, initial-scale=1.0, user-scalable=yes">
+
+    <script src="../../webcomponentsjs/webcomponents-lite.js"></script>
+    <script src="../../web-component-tester/browser.js"></script>
+    <script src="../../iron-test-helpers/test-helpers.js"></script>
+    <script src="../../iron-test-helpers/mock-interactions.js"></script>
+    <script src="data-generator.js"></script>
+    <script src="../../chance/dist/chance.min.js"></script>
+    <link rel="import" href="../project-details.html">
+  </head>
+  <body>
+
+    <test-fixture id="basic">
+      <template>
+        <project-details></project-details>
+      </template>
+    </test-fixture>
+
+    <script>
+    /* global DataGenerator, fixture, assert, sinon */
+    suite('project delete', function() {
+      var projectId;
+      var element;
+      setup(function(done) {
+        DataGenerator.generateData(10)
+        .then(result => {
+          projectId = result;
+          element = fixture('basic');
+          element.projectId = projectId;
+          setTimeout(function() {
+            done();
+          }, 300);
+        });
+      });
+
+      teardown(function() {
+        return DataGenerator.destroyData();
+      });
+
+      test('Handles the project-object-deleted custom event', function() {
+        var event = new CustomEvent('project-object-deleted', {
+          detail: {
+            id: projectId
+          },
+          bubbles: true,
+          cancelable: true
+        });
+        var spy = sinon.spy();
+        element.addEventListener('navigate', spy);
+        document.body.dispatchEvent(event);
+        assert.isUndefined(element.project, 'project is undefined');
+        assert.isTrue(spy.calledOnce, 'navigate event is fired');
+      });
+
+      test('Deletes empty project without confirmation', function() {
+        var spy = sinon.spy();
+        element.addEventListener('navigate', spy);
+        var eventData;
+        var callback = function(e) {
+          if (!e.cancelable) {
+            return;
+          }
+          element.removeEventListener('project-object-deleted', callback);
+          eventData = e.detail;
+        };
+        element.addEventListener('project-object-deleted', callback);
+        return element._deleteEmpty(() => {
+          assert.isTrue(spy.calledOnce, 'navigate event is fired');
+          assert.equal(eventData.id, projectId);
+        });
+      });
+
+      test('_deleteProject() opens the warning window', function() {
+        var spy1 = sinon.spy();
+        var spy2 = sinon.spy();
+        element.addEventListener('project-object-deleted', spy1);
+        element.addEventListener('request-objects-deleted', spy2);
+        element._deleteProject();
+        var node = element.$$('paper-dialog');
+        assert.isTrue(node.opened, 'warning dialog is opened');
+        assert.isFalse(spy1.called, 'delete project event wasn\'t fired');
+        assert.isFalse(spy1.called, 'delete requests event wasn\'t fired');
+      });
+
+      test('Deletes project and the requests', function() {
+        var spy1 = sinon.spy();
+        var spy2 = sinon.spy();
+        element.addEventListener('project-object-deleted', spy1);
+        element.addEventListener('request-objects-deleted', spy2);
+        return element._deleteDialogResult({
+          detail: {
+            canceled: false,
+            confirmed: true
+          }
+        })
+        .then(() => {
+          assert.equal(spy1.callCount, 2, 'Project delete flow is OK');
+          assert.equal(spy2.callCount, 1, 'Request delete flow is OK');
+        });
+      });
+    });
+    </script>
+
+  </body>
+</html>

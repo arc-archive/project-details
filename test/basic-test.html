@@ -1,0 +1,99 @@
+<!doctype html>
+<!--
+@license
+Copyright (c) 2015 The Polymer Project Authors. All rights reserved.
+This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+Code distributed by Google as part of the polymer project is also
+subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+-->
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, minimum-scale=1.0, initial-scale=1.0, user-scalable=yes">
+
+    <script src="../../webcomponentsjs/webcomponents-lite.js"></script>
+    <script src="../../web-component-tester/browser.js"></script>
+    <script src="../../iron-test-helpers/test-helpers.js"></script>
+    <script src="../../iron-test-helpers/mock-interactions.js"></script>
+    <script src="data-generator.js"></script>
+    <script src="../../chance/dist/chance.min.js"></script>
+    <link rel="import" href="../project-details.html">
+  </head>
+  <body>
+
+    <test-fixture id="basic">
+      <template>
+        <project-details></project-details>
+      </template>
+    </test-fixture>
+
+    <script>
+    /* global DataGenerator, fixture, assert */
+    suite('basic', function() {
+      var projectId;
+      suiteSetup(function() {
+        return DataGenerator.generateData(10)
+        .then(result => {
+          projectId = result;
+        });
+      });
+
+      suiteTeardown(function() {
+        return DataGenerator.destroyData();
+      });
+
+      var element;
+      setup(function() {
+        element = fixture('basic');
+        element.projectId = projectId;
+      });
+
+      test('requests is not set', function() {
+        assert.isUndefined(element.requests);
+      });
+
+      test('project is not set', function() {
+        assert.isUndefined(element.project);
+      });
+
+      test('edit is false by default', function() {
+        assert.isFalse(element.edit);
+      });
+
+      test('hasRequests is false by default', function() {
+        assert.isFalse(element.hasRequests);
+      });
+
+      test('_eventSource is the element', function() {
+        assert.ok(element._eventSource === element);
+      });
+
+      test('_isOpened is the element', function() {
+        assert.isTrue(element._isOpened);
+      });
+
+      test('Requests are set after a while', function() {
+        setTimeout(function() {
+          assert.typeOf(element.requests, 'array');
+          assert.lengthOf(element.requests, 10);
+        }, 500);
+      });
+
+      test('Project is set after a while', function() {
+        setTimeout(function() {
+          assert.typeOf(element.project, 'object');
+        }, 500);
+      });
+
+      test('hasRequests is computed after a while', function() {
+        setTimeout(function() {
+          assert.isTrue(element.hasRequests);
+        }, 500);
+      });
+    });
+    </script>
+
+  </body>
+</html>

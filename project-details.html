@@ -1,0 +1,573 @@
+<!--
+@license
+Copyright 2017 The Advanced REST client authors <arc@mulesoft.com>
+Licensed under the Apache License, Version 2.0 (the "License"); you may not
+use this file except in compliance with the License. You may obtain a copy of
+the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+License for the specific language governing permissions and limitations under
+the License.
+-->
+<link rel="import" href="../polymer/polymer.html">
+<link rel="import" href="../arc-models/request-model.html">
+<link rel="import" href="../arc-models/project-model.html">
+<link rel="import" href="../project-requests-list/project-requests-list.html">
+<link rel="import" href="../legacyproject-related-requests/legacyproject-related-requests.html">
+<link rel="import" href="../openable-panel-behavior/openable-panel-behavior.html">
+<link rel="import" href="../paper-toast/paper-toast.html">
+<link rel="import" href="../paper-button/paper-button.html">
+<link rel="import" href="../paper-icon-button/paper-icon-button.html">
+<link rel="import" href="../paper-menu-button/paper-menu-button.html">
+<link rel="import" href="../paper-listbox/paper-listbox.html">
+<link rel="import" href="../paper-item/paper-icon-item.html">
+<link rel="import" href="../paper-dialog/paper-dialog.html">
+<link rel="import" href="../arc-icons/arc-icons.html">
+<link rel="import" href="project-details-editor.html">
+<!--
+A project details panel for the Advanced REST Client.
+
+Contains complete UI to display ARC's legacy projects.
+
+This element contains logic for handling request and project data (`arc-models`).
+
+It doesn't support data export. It must be used with another element that handles `export-project` custom event.
+
+The element dispatches `navigate` custom event when the navigation occures. Hosting application shouls handle the event and navigate the used into requested place.
+
+### Example
+```
+<project-details project-id="some-id"></project-details>
+```
+
+### Styling
+`<project-details>` provides the following custom properties and mixins for styling:
+
+Custom property | Description | Default
+----------------|-------------|----------
+`--project-details` | Mixin applied to the element | `{}`
+`--project-details-description-color` | Color of the project description text | `rgba(0, 0, 0, 0.74)`
+`--project-details-description-max-width` | Max width of the project description | `700px`
+
+@group UI Elements
+@element project-details
+@demo demo/index.html
+-->
+<dom-module id="project-details">
+  <template>
+    <style>
+    :host {
+      display: block;
+      @apply --project-details;
+    }
+
+    .revert-button {
+      height: 38px;
+    }
+
+    .title {
+      @apply --layout-horizontal;
+      @apply --layout-center;
+    }
+
+    h2 {
+      @apply --arc-font-headline;
+      display: inline-block;
+    }
+
+    h3 {
+      @apply --arc-font-subhead;
+    }
+
+    .description {
+      margin-bottom: 24px;
+    }
+
+    .description-value {
+      @apply --arc-font-body1;
+      color: var(--project-details-description-color, rgba(0, 0, 0, 0.74));
+      max-width: var(--project-details-description-max-width, 700px);
+    }
+
+    .description-value.empty {
+      font-style: italic;
+    }
+
+    .add-description {
+      color: var(--primary-color);
+    }
+
+    .primary-button {
+      background-color: var(--primary-color);
+      color: #fff;
+    }
+    </style>
+    <template is="dom-if" if="[[!edit]]">
+      <div class="title">
+        <h2>[[project.name]]</h2>
+        <paper-menu-button>
+          <paper-icon-button class="dropdown-trigger" icon="arc:more-vert"></paper-icon-button>
+          <paper-listbox class="dropdown-content">
+            <paper-icon-item on-tap="toggleEdit"><iron-icon icon="arc:edit" item-icon></iron-icon>Edit</paper-icon-item>
+            <paper-icon-item on-tap="_onExportAll"><iron-icon icon="arc:archive" item-icon></iron-icon>Export</paper-icon-item>
+            <paper-icon-item on-tap="_deleteProject"><iron-icon icon="arc:clear" item-icon></iron-icon>Delete</paper-icon-item>
+          </paper-listbox>
+        </paper-menu-button>
+      </div>
+      <div class="description">
+        <template is="dom-if" if="[[project.description]]">
+          <p class="description-value">[[project.description]]</p>
+        </template>
+        <template is="dom-if" if="[[!project.description]]">
+          <p class="description-value empty">No description <paper-button on-tap="toggleEdit" class="add-description">Add</paper-button></p>
+        </template>
+      </div>
+    </template>
+    <template is="dom-if" if="[[edit]]">
+      <project-details-editor name="[[project.name]]" description="[[project.description]]" on-cancel-edit="_cancelEdit" on-save-edit="_saveEdit"></project-details-editor>
+    </template>
+
+    <template is="dom-if" if="[[hasRequests]]">
+      <h3>Requests ([[requests.length]])</h3>
+      <project-requests-list
+        items="[[requests]]"
+        on-list-items-delete="_onDelete"
+        on-list-item-open="_onOpen"
+        on-list-item-name-changed="_onNameChange"
+        on-list-items-export="_onExport"
+        on-dom-order-changed="_onReorder"></project-requests-list>
+    </template>
+    <template is="dom-if" if="[[!hasRequests]]">
+      <p>This project has no requests. <paper-button on-tap="_deleteEmpty" class="primary-button" raised>Delete project</paper-button></p>
+    </template>
+
+    <legacyproject-related-requests data="{{requests}}" full-query></legacyproject-related-requests>
+    <request-model events-target="[[_eventSource]]"></request-model>
+    <project-model events-target="[[_eventSource]]"></project-model>
+    <paper-toast id="noModel" text="Model not found. Please, report an issue."></paper-toast>
+    <paper-toast id="revertError" text="Unable to revert changes. Please, report an issue."></paper-toast>
+    <paper-toast id="reorderError" text="Unable to reorder items. Please, report an issue."></paper-toast>
+    <paper-toast id="noExport" text="Export module not found. Please, report an issue."></paper-toast>
+    <paper-toast id="deleteToast" duration="7000">
+      <paper-button class="revert-button" on-tap="revertDeleted">Revert</paper-button>
+    </paper-toast>
+
+    <paper-dialog id="projectDeleteDialog" on-iron-overlay-closed="_deleteDialogResult">
+      <h2>Delete project</h2>
+      <p>This removes the project and all request data associated with the project.</p>
+      <div class="buttons">
+        <paper-button dialog-dismiss>Cancel</paper-button>
+        <paper-button dialog-confirm autofocus>Delete</paper-button>
+      </div>
+    </paper-dialog>
+  </template>
+  <script>
+  Polymer({
+    is: 'project-details',
+    behaviors: [ArcBehaviors.OpenablePanelBehavior],
+    /**
+     * Fired when navigation was requested
+     *
+     * @event navigate
+     * @param {String} base The base route. It's always `request`
+     * @param {String} type Type of the request to open. It's always `saved`
+     * @param {String} id ID of the request to open.
+     */
+    /**
+     * Fired when the name changed. `project-model` handles this event to update
+     * the name.  This event is cancelable. A non-cancelable `request-object-changed`
+     * event is fired when the request name has been updated.
+     *
+     * @event request-name-changed
+     * @param {Object} request The request object with changed name
+     * @param {String} name New name of the request
+     * @param {String} type Always `saved-requests`
+     */
+    /**
+     * Fired when requests are to be deleted. Informs the model to delete items.
+     *
+     * @event request-objects-deleted
+     * @param {Array} items List of ids to delete
+     * @param {String} type Always `saved-requests`
+     */
+    /**
+     * Fired when the "revert" delete button has been used.
+     * Informs the requests model to restore the data.
+     *
+     * @event request-objects-undeleted
+     * @param {Array} items List of requests to delete
+     * @param {String} type Always `saved-requests`
+     */
+    /**
+     * Fired when the project is to be exported.
+     *
+     * @event export-project
+     * @param {Object} project Project data
+     * @param {Array} requests List of requests to export with the project.
+     */
+    properties: {
+      /**
+       * Project datastore ID to display.
+       */
+      projectId: String,
+      /**
+       * List of requests to display.
+       * This list is computed when the `projectId` changes
+       */
+      requests: Array,
+      /**
+       * Project data restored from the datastore.
+       */
+      project: Object,
+      /**
+       * Set to true to enable project editor.
+       */
+      edit: {
+        type: Boolean,
+        value: false
+      },
+      /**
+       * Computed value, true when the project has requests.
+       */
+      hasRequests: {
+        type: Boolean,
+        value: false,
+        computed: '_computeHasRequests(requests.length)'
+      },
+      // List of requests that has been recently removed
+      _latestDeleted: Array,
+      // Event source for the data models.
+      _eventSource: {
+        type: Object,
+        value: function() {
+          return this;
+        }
+      }
+    },
+
+    observers: [
+      '_projectChanged(projectId, _isOpened)'
+    ],
+
+    attached: function() {
+      this.listen(window, 'project-object-changed', '_projectDataChanged');
+      this.listen(window, 'project-object-deleted', '_projectDeleteHandler');
+    },
+
+    detached: function() {
+      this.unlisten(window, 'project-object-changed', '_projectDataChanged');
+      this.unlisten(window, 'project-object-deleted', '_projectDeleteHandler');
+    },
+
+    _projectChanged: function(projectId, _isOpened) {
+      if (!_isOpened || !projectId) {
+        return;
+      }
+      this.$$('legacyproject-related-requests').projectId = projectId;
+      this.$$('project-model').read(projectId)
+      .then(project => this.set('project', project))
+      .then(() => console.log('Project data set'));
+    },
+    // Handles the `list-item-open` event to open a request.
+    _onOpen: function(e) {
+      var request = e.detail.item;
+      this.fire('navigate', {
+        base: 'request',
+        type: 'saved',
+        id: request._id
+      }, {
+        composed: true
+      });
+    },
+    // Hanldes request name change.
+    _onNameChange: function(e) {
+      var request = e.detail.item;
+
+      var event = this.fire('request-name-changed', {
+        request: request,
+        name: request.name,
+        type: 'saved-requests'
+      }, {
+        cancelable: true,
+        composed: true
+      });
+      if (!event.defaultPrevented) {
+        this.$.noModel.opened = true;
+        return;
+      }
+    },
+    // Handles items delete event.
+    _onDelete: function(e) {
+      var deleted = e.detail.items;
+      var event = this.fire('request-objects-deleted', {
+        items: deleted.map(item => item._id),
+        type: 'saved-requests'
+      }, {
+        cancelable: true,
+        composed: true
+      });
+      if (!event.defaultPrevented) {
+        this.$.noModel.opened = true;
+        return;
+      }
+      var len = deleted.length;
+      event.detail.result
+      .then(updated => {
+        return Object.keys(updated).map(id => {
+          let newRev = updated[id];
+          for (var i = 0; i < len; i++) {
+            if (deleted[i]._id === id) {
+              let item = deleted[i];
+              item._rev = newRev;
+              return item;
+            }
+          }
+          throw new Error('Item not found');
+        });
+      })
+      .then(deleted => {
+        this._latestDeleted = deleted;
+        let msg;
+        if (deleted.length === 1) {
+          msg = 'The request has been removed.';
+        } else {
+          msg = deleted.length + ' requests has been removed.';
+        }
+        this.$.deleteToast.text = msg;
+        this.$.deleteToast.opened = true;
+      });
+    },
+    /**
+     * Restores removed requests.
+     * It does nothing if `_latestDeleted` is not set or empty.
+     */
+    revertDeleted: function() {
+      this.$.deleteToast.opened = false;
+      var deleted = this._latestDeleted;
+      if (!deleted || !deleted.length) {
+        return Promise.resolve();
+      }
+
+      var event = this.fire('request-objects-undeleted', {
+        items: deleted,
+        type: 'saved-requests'
+      }, {
+        cancelable: true,
+        composed: true
+      });
+
+      if (!event.defaultPrevented) {
+        this.$.noModel.opened = true;
+        return;
+      }
+
+      event.detail.result.catch(() => {
+        this.$.revertError.opened = true;
+      });
+    },
+    // Handles the export event. Fires `export-project` custom event
+    _onExport: function(e) {
+      this._exportItems(e.detail.items);
+    },
+    // Menu item handler to export all project data
+    _onExportAll: function() {
+      this._exportItems(this.requests);
+    },
+    /**
+     * Dispatches the `export-project` event with relevant data.
+     *
+     * @param {Array} requests List of request to export with the project.
+     */
+    _exportItems: function(requests) {
+      var project = this.project;
+
+      var event = this.fire('export-project', {
+        project: project,
+        requests: requests
+      }, {
+        cancelable: true,
+        composed: true
+      });
+
+      if (!event.defaultPrevented) {
+        this.$.noExport.opened = true;
+        return;
+      }
+    },
+    // Handler for the list reorder event. Updates items order in the datastore.
+    _onReorder: function() {
+      var items = this.requests;
+      var update = [];
+      items.forEach((item, index) => {
+        if (item.projectOrder !== index) {
+          item.projectOrder = index;
+          update.push(item);
+        }
+      });
+
+      this._updateBulk(update)
+      .catch(() => {
+        this.$.reorderError.opened = true;
+      });
+    },
+    // Updates requests in bulk opeartion.
+    _updateBulk: function(items) {
+      var promises = items.map(item => this._updateRequest(item));
+      return Promise.all(promises);
+    },
+    /**
+     * Sends the `request-object-changed` custom event for each request on the list.
+     * @param {Object} item Request object.
+     * @return {Promise} Promise resolved when the request object is updated.
+     */
+    _updateRequest: function(item) {
+      var event = this.fire('request-object-changed', {
+        type: 'saved-requests',
+        request: item
+      }, {
+        cancelable: true,
+        composed: true
+      });
+
+      if (!event.defaultPrevented) {
+        return Promise.reject(new Error('Model not found'));
+      }
+      return event.detail.result;
+    },
+    // Computes value for the `hasRequests` property.
+    _computeHasRequests: function(length) {
+      return !!(length);
+    },
+    // Toogles project details editor
+    toggleEdit: function() {
+      this.edit = !this.edit;
+    },
+    // Handler to project edit cancel event
+    _cancelEdit: function() {
+      this.edit = false;
+    },
+    // Handler to project edit save event
+    _saveEdit: function(e) {
+      var name = e.detail.name;
+      var description = e.detail.description;
+      var project = this.project;
+      var changed = false;
+      if (name !== project.name) {
+        changed = true;
+        project.name = name;
+      }
+      if (description !== project.description) {
+        changed = true;
+        project.description = description;
+      }
+      if (!changed) {
+        this.edit = false;
+        return;
+      }
+      this.set('project', project);
+      var event = this.fire('project-object-changed', {
+        project: project
+      }, {
+        cancelable: true,
+        composed: true
+      });
+      if (!event.defaultPrevented) {
+        this.$.noModel.opened = true;
+        return;
+      }
+      this.edit = false;
+    },
+    // handler for the `project-object-changed`. Updates project data if needed.
+    _projectDataChanged: function(e) {
+      if (e.target === this || e.target.cancelable) {
+        return;
+      }
+      if (e.detail.project._id !== this.projectId) {
+        return;
+      }
+      this.set('project', e.detail.project);
+    },
+    // Handler for the `project-object-deleted` event.
+    _projectDeleteHandler: function(e) {
+      if (e.target === this || e.target.cancelable) {
+        return;
+      }
+      if (e.detail.id !== this.projectId) {
+        return;
+      }
+      console.log('_projectDeleteHandler');
+      this.set('project', undefined);
+      this.fire('navigate', {
+        base: 'default'
+      }, {
+        composed: true
+      });
+    },
+    /**
+     * Deletes the project when there's no requests associated with it.
+     * This function doesn't ask for confirmation.
+     */
+    _deleteEmpty: function() {
+      var event = this.fire('project-object-deleted', {
+        id: this.project._id
+      }, {
+        cancelable: true,
+        composed: true
+      });
+
+      if (event.defaultPrevented) {
+        this.$.noModel.opened = true;
+        return;
+      }
+
+      return event.detail.result.then(() => {
+        this.fire('navigate', {
+          base: 'default'
+        }, {
+          composed: true
+        });
+      });
+    },
+    // Called with "delete" menu option.
+    _deleteProject: function() {
+      this.$.projectDeleteDialog.opened = true;
+    },
+    // Called when the "delete dialog" closes
+    _deleteDialogResult: function(e) {
+      if (e.detail.canceled || !e.detail.confirmed) {
+        return Promise.resolve();
+      }
+      var requests = this.requests;
+      if (!requests) {
+        requests = [];
+      }
+      var event = this.fire('request-objects-deleted', {
+        items: requests.map(item => item._id),
+        type: 'saved-requests'
+      }, {
+        cancelable: true,
+        composed: true
+      });
+      if (!event.defaultPrevented) {
+        this.$.noModel.opened = true;
+        return Promise.reject(new Error('No model found'));
+      }
+      return event.detail.result.then(() => {
+        var event = this.fire('project-object-deleted', {
+          id: this.project._id
+        }, {
+          cancelable: true,
+          composed: true
+        });
+        if (!event.defaultPrevented) {
+          this.$.noModel.opened = true;
+          return Promise.reject(new Error('No model found.'));
+        }
+        return event.detail.result;
+      });
+    }
+  });
+  </script>
+</dom-module>

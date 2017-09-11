@@ -1,0 +1,136 @@
+<!doctype html>
+<!--
+@license
+Copyright (c) 2015 The Polymer Project Authors. All rights reserved.
+This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+Code distributed by Google as part of the polymer project is also
+subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+-->
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, minimum-scale=1.0, initial-scale=1.0, user-scalable=yes">
+
+    <script src="../../webcomponentsjs/webcomponents-lite.js"></script>
+    <script src="../../web-component-tester/browser.js"></script>
+    <script src="../../iron-test-helpers/test-helpers.js"></script>
+    <script src="../../iron-test-helpers/mock-interactions.js"></script>
+    <script src="data-generator.js"></script>
+    <script src="../../chance/dist/chance.min.js"></script>
+    <link rel="import" href="../project-details.html">
+  </head>
+  <body>
+
+    <test-fixture id="basic">
+      <template>
+        <project-details></project-details>
+      </template>
+    </test-fixture>
+
+    <script>
+    /* global DataGenerator, TestHelpers, fixture, assert */
+    suite('project edit', function() {
+      var projectId;
+      var counter = 0;
+      suiteSetup(function() {
+        return DataGenerator.generateData(10)
+        .then(result => {
+          projectId = result;
+        });
+      });
+
+      suiteTeardown(function() {
+        return DataGenerator.destroyData();
+      });
+
+      var element;
+      setup(function(done) {
+        element = fixture('basic');
+        element.projectId = projectId;
+        setTimeout(function() {
+          done();
+        }, 250);
+      });
+
+      test('Enditor is not in the DOM', function() {
+        var node = Polymer.dom(element.root).querySelector('project-details-editor');
+        assert.notOk(node);
+      });
+
+      test('Turning on the editor', function() {
+        element.edit = true;
+        TestHelpers.forceXIfStamp(element);
+        var node = Polymer.dom(element.root).querySelector('project-details-editor');
+        assert.ok(node);
+      });
+
+      const updateName = 'test-name';
+      const updateDescription = 'test-description';
+      const projectUpdateDetail = {
+        detail: {
+          name: updateName,
+          description: updateDescription
+        }
+      };
+
+      function updateProject() {
+        element.edit = true;
+        TestHelpers.forceXIfStamp(element);
+        projectUpdateDetail.detail.name = updateName + '-' + String(counter);
+        projectUpdateDetail.detail.description = updateDescription + '-' + String(counter);
+        counter++;
+        element._saveEdit(projectUpdateDetail);
+      }
+
+      test('Updates name and description in the model', function() {
+        updateProject();
+        assert.equal(element.project.name, projectUpdateDetail.detail.name ,
+          'Name is updated');
+        assert.equal(element.project.description, projectUpdateDetail.detail.description,
+          'Description is updated');
+      });
+
+      test('The project-object-changed custom event is handled by internal data model', function() {
+        updateProject();
+        assert.isFalse(element.$.noModel.opened);
+      });
+
+      test('Closes the editor', function() {
+        updateProject();
+        assert.isFalse(element.edit);
+      });
+
+      test('Non-cancelable project-object-changed event is dispatched', function(done) {
+        element.addEventListener('project-object-changed', function(e) {
+          if (e.cancelable) {
+            return;
+          }
+          done();
+        });
+        updateProject();
+      });
+
+      test('The project-object-changed event updates the model', function() {
+        var event = new CustomEvent('project-object-changed', {
+          detail: {
+            project: {
+              _id: projectId,
+              name: updateName,
+              description: updateDescription
+            },
+            oldRev: 'test'
+          },
+          bubbles: true,
+          cancelable: true
+        });
+        document.body.dispatchEvent(event);
+        assert.equal(element.project.name, updateName);
+        assert.equal(element.project.description, updateDescription);
+      });
+    });
+    </script>
+
+  </body>
+</html>
