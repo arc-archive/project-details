@@ -505,7 +505,7 @@ Custom property | Description | Default
     },
     // handler for the `project-object-changed`. Updates project data if needed.
     _projectDataChanged: function(e) {
-      if (e.target === this || e.cancelable) {
+      if (Polymer.dom(e).rootTarget === this || e.cancelable) {
         return;
       }
       if (e.detail.project._id !== this.projectId) {
@@ -515,7 +515,7 @@ Custom property | Description | Default
     },
     // Handler for the `project-object-deleted` event.
     _projectDeleteHandler: function(e) {
-      if (e.target === this || e.cancelable) {
+      if (Polymer.dom(e).rootTarget === this || e.cancelable) {
         return;
       }
       if (e.detail.id !== this.projectId) {
