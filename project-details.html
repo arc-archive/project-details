@@ -228,6 +228,18 @@ Custom property | Description | Default
         type: Boolean,
         value: false
       },
+      // True when the project data are being loaded
+      loadingProject: {
+        type: Boolean,
+        notify: true,
+        readOnly: true
+      },
+      // True when the request data are being loaded
+      loadingRequests: {
+        type: Boolean,
+        notify: true,
+        readOnly: true
+      },
       /**
        * Computed value, true when the project has requests.
        */
@@ -248,7 +260,8 @@ Custom property | Description | Default
     },
 
     observers: [
-      '_projectChanged(projectId, _isOpened)'
+      '_projectChanged(projectId, _isOpened)',
+      '_cancelRequestLoading(loadingRequests, hasRequests)'
     ],
 
     attached: function() {
@@ -265,10 +278,20 @@ Custom property | Description | Default
       if (!_isOpened || !projectId) {
         return;
       }
+      this._setLoadingProject(true);
+      this._setLoadingRequests(true);
       this.$$('legacyproject-related-requests').projectId = projectId;
       this.$$('project-model').read(projectId)
-      .then(project => this.set('project', project))
-      .then(() => console.log('Project data set'));
+      .then(project => {
+        this.set('project', project);
+        this._setLoadingProject(false);
+      });
+    },
+
+    _cancelRequestLoading: function(loadingRequests, hasRequests) {
+      if (loadingRequests && hasRequests) {
+        this._setLoadingRequests(false);
+      }
     },
     // Handles the `list-item-open` event to open a request.
     _onOpen: function(e) {
@@ -466,7 +489,8 @@ Custom property | Description | Default
         this.edit = false;
         return;
       }
-      this.set('project', project);
+      // this.project should be updated by non-cancellable `project-object-changed`
+      // custom event
       var event = this.fire('project-object-changed', {
         project: project
       }, {
@@ -481,7 +505,7 @@ Custom property | Description | Default
     },
     // handler for the `project-object-changed`. Updates project data if needed.
     _projectDataChanged: function(e) {
-      if (e.target === this || e.target.cancelable) {
+      if (Polymer.dom(e).rootTarget === this || e.cancelable) {
         return;
       }
       if (e.detail.project._id !== this.projectId) {
@@ -491,13 +515,12 @@ Custom property | Description | Default
     },
     // Handler for the `project-object-deleted` event.
     _projectDeleteHandler: function(e) {
-      if (e.target === this || e.target.cancelable) {
+      if (Polymer.dom(e).rootTarget === this || e.cancelable) {
         return;
       }
       if (e.detail.id !== this.projectId) {
         return;
       }
-      console.log('_projectDeleteHandler');
       this.set('project', undefined);
       this.fire('navigate', {
         base: 'default'

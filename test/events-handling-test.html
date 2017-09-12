@@ -30,10 +30,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     </test-fixture>
 
     <script>
-    /* global DataGenerator, TestHelpers, fixture, assert */
-    suite('project edit', function() {
+    /* global DataGenerator, fixture, assert, sinon */
+    suite('Events handling', function() {
       var projectId;
-      var counter = 0;
       suiteSetup(function() {
         return DataGenerator.generateData(10)
         .then(result => {
@@ -77,62 +76,42 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         doneWhenLoaded(element, done);
       });
 
-      test('Enditor is not in the DOM', function() {
-        var node = Polymer.dom(element.root).querySelector('project-details-editor');
-        assert.notOk(node);
-      });
-
-      test('Turning on the editor', function() {
-        element.edit = true;
-        TestHelpers.forceXIfStamp(element);
-        var node = Polymer.dom(element.root).querySelector('project-details-editor');
-        assert.ok(node);
-      });
-
-      const updateName = 'test-name';
-      const updateDescription = 'test-description';
-      const projectUpdateDetail = {
-        detail: {
-          name: updateName,
-          description: updateDescription
-        }
-      };
-
-      function updateProject() {
-        element.edit = true;
-        TestHelpers.forceXIfStamp(element);
-        projectUpdateDetail.detail.name = updateName + '-' + String(counter);
-        projectUpdateDetail.detail.description = updateDescription + '-' + String(counter);
-        counter++;
-        element._saveEdit(projectUpdateDetail);
+      function fire(type, detail, cancelable) {
+        var event = new CustomEvent(type, {
+          detail: detail,
+          cancelable: cancelable === undefined ? true : cancelable,
+          bubbles: true
+        });
+        document.body.dispatchEvent(event);
+        return event;
       }
 
-      test('Updates name and description in the model', function() {
-        updateProject();
-        assert.equal(element.project.name, projectUpdateDetail.detail.name ,
-          'Name is updated');
-        assert.equal(element.project.description, projectUpdateDetail.detail.description,
-          'Description is updated');
+      test('handles project-object-changed custom event', function() {
+        const desc = 'test-desc-updated';
+        const name = 'test-name-updated';
+        var updated = Object.assign({}, element.project);
+        updated.name = name;
+        updated.description = desc;
+        fire('project-object-changed', {
+          project: updated
+        }, false);
+        assert.equal(element.project.name, name);
+        assert.equal(element.project.description, desc);
       });
 
-      test('The project-object-changed custom event is handled by internal data model', function() {
-        updateProject();
-        assert.isFalse(element.$.noModel.opened);
-      });
-
-      test('Closes the editor', function() {
-        updateProject();
-        assert.isFalse(element.edit);
-      });
-
-      test('Non-cancelable project-object-changed event is dispatched', function(done) {
-        element.addEventListener('project-object-changed', function(e) {
-          if (e.cancelable) {
-            return;
-          }
-          done();
+      test('Handles project-object-deleted custom event', function() {
+        var event = new CustomEvent('project-object-deleted', {
+          detail: {
+            id: projectId
+          },
+          bubbles: true,
+          cancelable: false
         });
-        updateProject();
+        var spy = sinon.spy();
+        element.addEventListener('navigate', spy);
+        document.body.dispatchEvent(event);
+        assert.isUndefined(element.project, 'project is undefined');
+        assert.isTrue(spy.calledOnce, 'navigate event is fired');
       });
     });
     </script>

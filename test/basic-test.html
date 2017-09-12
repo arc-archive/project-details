@@ -32,25 +32,12 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     <script>
     /* global DataGenerator, fixture, assert */
     suite('basic', function() {
-      var projectId;
-      suiteSetup(function() {
-        return DataGenerator.generateData(10)
-        .then(result => {
-          projectId = result;
-        });
-      });
-
-      suiteTeardown(function() {
-        return DataGenerator.destroyData();
-      });
-
       var element;
       setup(function() {
         element = fixture('basic');
-        element.projectId = projectId;
       });
 
-      test('requests is not set', function() {
+      test('requests are not set', function() {
         assert.isUndefined(element.requests);
       });
 
@@ -73,24 +60,64 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       test('_isOpened is the element', function() {
         assert.isTrue(element._isOpened);
       });
+    });
 
-      test('Requests are set after a while', function() {
-        setTimeout(function() {
-          assert.typeOf(element.requests, 'array');
-          assert.lengthOf(element.requests, 10);
-        }, 500);
+    suite('basic - after initialization', function() {
+      var projectId;
+      suiteSetup(function() {
+        return DataGenerator.generateData(10)
+        .then(result => {
+          projectId = result;
+        });
       });
 
-      test('Project is set after a while', function() {
-        setTimeout(function() {
-          assert.typeOf(element.project, 'object');
-        }, 500);
+      suiteTeardown(function() {
+        return DataGenerator.destroyData();
       });
 
-      test('hasRequests is computed after a while', function() {
-        setTimeout(function() {
-          assert.isTrue(element.hasRequests);
-        }, 500);
+      var element;
+      var loaded = [false, false];
+      function doneWhenLoaded(element, done) {
+        function checkDone() {
+          if (loaded[0] && loaded[1]) {
+            done();
+          }
+        }
+        var c1 = function(e) {
+          if (e.detail.value === false) {
+            element.removeEventListener('loading-project-changed', c1);
+            loaded[0] = true;
+            checkDone();
+          }
+        };
+        var c2 = function(e) {
+          if (e.detail.value === false) {
+            element.removeEventListener('loading-requests-changed', c2);
+            loaded[1] = true;
+            checkDone();
+          }
+        };
+        element.addEventListener('loading-project-changed', c1);
+        element.addEventListener('loading-requests-changed', c2);
+      }
+      setup(function(done) {
+        element = fixture('basic');
+        element.projectId = projectId;
+        loaded = [false, false];
+        doneWhenLoaded(element, done);
+      });
+
+      test('Requests are set', function() {
+        assert.typeOf(element.requests, 'array');
+        assert.lengthOf(element.requests, 10);
+      });
+
+      test('Project is set', function() {
+        assert.typeOf(element.project, 'object');
+      });
+
+      test('hasRequests is computed', function() {
+        assert.isTrue(element.hasRequests);
       });
     });
     </script>
