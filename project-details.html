@@ -489,7 +489,8 @@ Custom property | Description | Default
         this.edit = false;
         return;
       }
-      this.set('project', project);
+      // this.project should be updated by non-cancellable `project-object-changed`
+      // custom event
       var event = this.fire('project-object-changed', {
         project: project
       }, {
