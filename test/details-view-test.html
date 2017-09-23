@@ -1,0 +1,172 @@
+<!doctype html>
+<!--
+@license
+Copyright (c) 2015 The Polymer Project Authors. All rights reserved.
+This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+Code distributed by Google as part of the polymer project is also
+subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+-->
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, minimum-scale=1.0, initial-scale=1.0, user-scalable=yes">
+
+    <script src="../../webcomponentsjs/webcomponents-lite.js"></script>
+    <script src="../../web-component-tester/browser.js"></script>
+    <script src="../../iron-test-helpers/test-helpers.js"></script>
+    <script src="../../iron-test-helpers/mock-interactions.js"></script>
+    <link rel="import" href="../../arc-demo-helpers/data-generator.html">
+    <link rel="import" href="../project-details.html">
+  </head>
+  <body>
+
+    <test-fixture id="basic">
+      <template>
+        <project-details></project-details>
+      </template>
+    </test-fixture>
+
+    <script>
+    /* global fixture, assert, sinon, DataGenerator, MockInteractions */
+    suite('Details panel', function() {
+      var element;
+      var event;
+      var requests;
+      var projects;
+      suiteSetup(function() {
+        return DataGenerator.insertSavedIfNotExists({
+          requestsSize: 10
+        })
+        .then(data => {
+          requests = data.requests;
+          projects = data.projects;
+        });
+      });
+
+      suiteTeardown(function() {
+        return DataGenerator.destroySavedRequestData();
+      });
+
+      setup(function() {
+        element = fixture('basic');
+        element.items = requests;
+        event = {
+          detail: {
+            item: requests[0]
+          }
+        };
+      });
+
+      test('_onDetails opend the detail panel', function() {
+        element._onDetails(event);
+        assert.isTrue(element.$.requestDetails.request === event.detail.item);
+        assert.isTrue(element.$.requestDetailsContainer.opened);
+      });
+
+      test('Fires navigate event for opened request details', function(done) {
+        element._onDetails(event);
+        element.addEventListener('iron-overlay-opened', function f() {
+          element.removeEventListener('iron-overlay-opened', f);
+          let spy = sinon.spy();
+          element.addEventListener('navigate', spy);
+          var node = element.$$('[data-action="load-request-detail"]');
+          MockInteractions.tap(node);
+          assert.isTrue(spy.calledOnce);
+          done();
+        });
+      });
+
+      test('Navigate event is cancelable', function(done) {
+        element._onDetails(event);
+        element.addEventListener('iron-overlay-opened', function f() {
+          element.removeEventListener('iron-overlay-opened', f);
+          element.addEventListener('navigate', function f(e) {
+            element.removeEventListener('navigate', f);
+            assert.isTrue(e.cancelable);
+            done();
+          });
+          var node = element.$$('[data-action="load-request-detail"]');
+          MockInteractions.tap(node);
+        });
+      });
+
+      test('Navigate event contains required data', function(done) {
+        element._onDetails(event);
+        element.addEventListener('iron-overlay-opened', function f() {
+          element.removeEventListener('iron-overlay-opened', f);
+          element.addEventListener('navigate', function f(e) {
+            element.removeEventListener('navigate', f);
+            assert.equal(e.detail.base, 'request');
+            assert.equal(e.detail.type, 'saved');
+            assert.equal(e.detail.id, event.detail.item._id);
+            done();
+          });
+          var node = element.$$('[data-action="load-request-detail"]');
+          MockInteractions.tap(node);
+        });
+      });
+
+      test('_editRequestDetails opens the editor', function(done) {
+        element._onDetails(event);
+        var state = 0;
+        element.addEventListener('iron-overlay-opened', function f() {
+          if (state === 0) {
+            element._editRequestDetails();
+            state++;
+          } else {
+            element.removeEventListener('iron-overlay-opened', f);
+            assert.isUndefined(element.$.requestDetails.request, 'Request on details panel is cleared');
+            assert.isFalse(element.$.requestDetailsContainer.opened, 'Details panel is closed');
+            assert.isTrue(element.$.requestEditorContainer.opened, 'Editor panel is opened');
+            assert.isTrue(element.$.requestEditor.request === event.detail.item,
+              'Editor contains a request item.');
+            done();
+          }
+        });
+      });
+
+      test('Cancels the editor', function(done) {
+        element._onDetails(event);
+        var state = 0;
+        element.addEventListener('iron-overlay-opened', function f() {
+          if (state === 0) {
+            element._editRequestDetails();
+            state++;
+          } else {
+            element.removeEventListener('iron-overlay-opened', f);
+            element._cancelRequestEdit();
+
+            assert.isUndefined(element.$.requestEditor.request, 'Request on the editor is cleared');
+            assert.isFalse(element.$.requestEditorContainer.opened, 'Editor is closed');
+            done();
+          }
+        });
+      });
+
+      test('Fires save-request-data on editor save action', function(done) {
+        element._onDetails(event);
+        var state = 0;
+        element.addEventListener('iron-overlay-opened', function f() {
+          if (state === 0) {
+            element._editRequestDetails();
+            state++;
+          } else {
+            element.removeEventListener('iron-overlay-opened', f);
+            element.addEventListener('save-request-data', function f2(e) {
+              element.removeEventListener('iron-overlay-opened', f2);
+              assert.isTrue(e.cancelable, 'Event is cancelable');
+              assert.typeOf(e.detail.request, 'object', 'Request object is set');
+              assert.typeOf(e.detail.opts, 'object', 'Opts object is set');
+              done();
+            });
+            let editor = element.$$('saved-request-editor');
+            editor._save();
+          }
+        });
+      });
+    });
+    </script>
+  </body>
+</html>
