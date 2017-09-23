@@ -25,6 +25,16 @@ Custom property | Description | Default
 `--project-details` | Mixin applied to the element | `{}`
 `--project-details-description-color` | Color of the project description text | `rgba(0, 0, 0, 0.74)`
 `--project-details-description-max-width` | Max width of the project description | `700px`
+`--warning-primary-color` | Main color of the warning messages | `#FF7043`
+`--warning-contrast-color` | Contrast color for the warning color | `#fff`
+`--error-toast` | Mixin applied to the error toast | `{}`
+`--project-details-fab-background-color` | Color of the fab button in the details panel | `--primary-color`
+`--empty-info` | Theme mixin, applied to the "empty info" message | `{}`
+`--project-details-description-empty` | Mixin applied to the "empty info" message | `{}`
+`--project-details-description` | Description of the project | `{}`
+`--project-details-description-container` Container of the description of the project | `{}`
+`project-details-header` | Mixin applied to the header section | `{}`
+`project-details-editor` | Mixin applied to the project editor | `{}`
 
 
 
