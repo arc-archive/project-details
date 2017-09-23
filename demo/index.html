@@ -26,28 +26,57 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   <link rel="import" href="../project-details.html">
 
   <style is="custom-style" include="demo-pages-shared-styles">
-
     :root {
       --arc-font-headline: {
         @apply --paper-font-headline;
       };
+
+      --arc-font-subhead: {
+        @apply --paper-font-subhead;
+      }
+
       --arc-font-body1: {
         @apply --paper-font-body1;
       };
-      --arc-font-subhead: {
-        @apply --paper-font-subhead;
+
+      --primary-color: #00A2DF;
+      --project-requests-list-item-selected-background-color: #f1f1f1;
+
+      --tutorial-toast-background-color: var(--primary-color);
+      --tutorial-toast-button-color: var(--primary-color);
+      --tutorial-toast-button-background-color: #fff;
+
+      --project-requests-list-search-input: {
+        min-width: 200px;
+      };
+
+      --action-button: {
+        color: #fff;
+        background-color: var(--primary-color);
+      };
+
+      --project-requests-list-body: {
+        margin-left: 12px;
+      };
+
+      --project-requests-list-method-label-container: {
+        display: block;
+        min-width: 90px;
+      };
+
+      --project-requests-list-selection-counter: {
+        margin-left: 30px;
       };
     }
 
     .vertical-section-container {
-      max-width: 1200px;
+      max-width: 1100px;
     }
 
   </style>
 </head>
 <body unresolved>
   <div class="vertical-section-container centered">
-    <h3>The `project-details`</h3>
     <project-details></project-details>
 
     <paper-toast id="navigarionToast" duration="7000"></paper-toast>

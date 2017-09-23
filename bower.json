@@ -34,7 +34,11 @@
     "paper-listbox": "PolymerElements/paper-listbox#<2",
     "paper-item": "PolymerElements/paper-item#<2",
     "paper-input": "PolymerElements/paper-input#<2",
-    "paper-dialog": "PolymerElements/paper-dialog#<2"
+    "paper-dialog": "PolymerElements/paper-dialog#<2",
+    "bottom-sheet": "advanced-rest-client/bottom-sheet#^1.0.4",
+    "paper-fab": "PolymerElements/paper-fab#<2",
+    "saved-request-editor": "advanced-rest-client/saved-request-editor#^0.1.1",
+    "saved-request-detail": "advanced-rest-client/saved-request-detail#^0.1.1"
   },
   "devDependencies": {
     "iron-component-page": "polymerelements/iron-component-page#1.0.0",
@@ -44,7 +48,8 @@
     "iron-test-helpers": "PolymerElements/iron-test-helpers#^1.4.0",
     "test-fixture": "PolymerElements/test-fixture#^3.0.0",
     "webcomponentsjs": "webcomponents/webcomponentsjs#^0.7.0",
-    "chance": "^1.0.11"
+    "chance": "^1.0.11",
+    "arc-demo-helpers": "advanced-rest-client/arc-demo-helpers#^1.0.18"
   },
   "ignore": [
     "**/.*",
