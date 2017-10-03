@@ -1,3 +1,13 @@
+<a name="0.1.7"></a>
+## [0.1.7](https://github.com/advanced-rest-client/project-details/compare/0.1.6...0.1.7) (2017-10-03)
+
+
+### New
+
+* Added support for markdown. ([2812a0a873e9c222a2e2fd5678eabcab716d2c01](https://github.com/advanced-rest-client/project-details/commit/2812a0a873e9c222a2e2fd5678eabcab716d2c01))
+
+
+
 <a name="0.1.6"></a>
 ## [0.1.6](https://github.com/advanced-rest-client/project-details/compare/0.1.5...0.1.6) (2017-10-03)
 
