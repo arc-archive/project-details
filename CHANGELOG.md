@@ -1,3 +1,13 @@
+<a name="0.1.4"></a>
+## [0.1.4](https://github.com/advanced-rest-client/project-details/compare/0.1.2...0.1.4) (2017-09-23)
+
+
+### Update
+
+* Updated the element to match saved requests panel. ([8cb930d9c9816c72c8c53c3c0acc39cfc3cc7be2](https://github.com/advanced-rest-client/project-details/commit/8cb930d9c9816c72c8c53c3c0acc39cfc3cc7be2))
+
+
+
 <a name="0.1.3"></a>
 ## [0.1.3](https://github.com/advanced-rest-client/project-details/compare/0.1.2...0.1.3) (2017-09-12)
 
