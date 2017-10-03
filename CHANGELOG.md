@@ -1,3 +1,13 @@
+<a name="0.1.5"></a>
+## [0.1.5](https://github.com/advanced-rest-client/project-details/compare/0.1.4...0.1.5) (2017-10-03)
+
+
+### Update
+
+* Updated css for bottom sheet ([cc34c81d1b6ad5265c6aaae703aafb3fc873d222](https://github.com/advanced-rest-client/project-details/commit/cc34c81d1b6ad5265c6aaae703aafb3fc873d222))
+
+
+
 <a name="0.1.4"></a>
 ## [0.1.4](https://github.com/advanced-rest-client/project-details/compare/0.1.2...0.1.4) (2017-09-23)
 
