@@ -29,6 +29,8 @@ the License.
 <link rel="import" href="../saved-request-detail/saved-request-detail.html">
 <link rel="import" href="../saved-request-editor/saved-request-editor.html">
 <link rel="import" href="../paper-fab/paper-fab.html">
+<link rel="import" href="../marked-element/marked-element.html">
+<link rel="import" href="../markdown-styles/markdown-styles.html">
 <link rel="import" href="project-details-editor.html">
 <!--
 A project details panel for the Advanced REST Client.
@@ -71,6 +73,7 @@ Custom property | Description | Default
 -->
 <dom-module id="project-details">
   <template>
+    <style include="markdown-styles"></style>
     <style>
     :host {
       display: block;
@@ -161,6 +164,10 @@ Custom property | Description | Default
       color: #fff;
       background-color: transparent;
     }
+
+    marked-element {
+      margin-top: 20px;
+    }
     </style>
     <template is="dom-if" if="[[!edit]]">
       <div class="title">
@@ -176,7 +183,9 @@ Custom property | Description | Default
       </div>
       <div class="description">
         <template is="dom-if" if="[[project.description]]">
-          <p class="description-value">[[project.description]]</p>
+          <marked-element markdown="[[project.description]]">
+            <div class="markdown-html markdown-body description-value"></div>
+          </marked-element>
         </template>
         <template is="dom-if" if="[[!project.description]]">
           <p class="description-value empty">No description <paper-button on-tap="toggleEdit" class="add-description">Add</paper-button></p>

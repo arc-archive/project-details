@@ -38,7 +38,9 @@
     "bottom-sheet": "advanced-rest-client/bottom-sheet#^1.0.4",
     "paper-fab": "PolymerElements/paper-fab#<2",
     "saved-request-editor": "advanced-rest-client/saved-request-editor#^0.1.1",
-    "saved-request-detail": "advanced-rest-client/saved-request-detail#^0.1.1"
+    "saved-request-detail": "advanced-rest-client/saved-request-detail#^0.1.1",
+    "marked-element": "PolymerElements/marked-element#^1.2.0",
+    "markdown-styles": "advanced-rest-client/markdown-styles#^1.0.0"
   },
   "devDependencies": {
     "iron-component-page": "polymerelements/iron-component-page#1.0.0",
