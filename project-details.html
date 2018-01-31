@@ -223,12 +223,12 @@ Custom property | Description | Default
     </paper-toast>
     <paper-toast id="errorToast" class="error-toast" duration="5000"></paper-toast>
 
-    <bottom-sheet id="requestDetailsContainer" with-backdrop on-iron-overlay-opened="_resizeSheetContent">
+    <bottom-sheet id="requestDetailsContainer" on-iron-overlay-opened="_resizeSheetContent">
       <paper-fab icon="arc:keyboard-arrow-right" data-action="load-request-detail" title="Load request" on-tap="_loadRequestDetails"></paper-fab>
       <saved-request-detail id="requestDetails" on-delete-request="_deleteRequestDetails" on-edit-request="_editRequestDetails"></saved-request-detail>
     </bottom-sheet>
 
-    <bottom-sheet id="requestEditorContainer" with-backdrop on-iron-overlay-opened="_resizeEditorSheetContent">
+    <bottom-sheet id="requestEditorContainer" on-iron-overlay-opened="_resizeEditorSheetContent">
       <saved-request-editor id="requestEditor" on-cancel-request-edit="_cancelRequestEdit" on-save-request="_saveRequestEdit"></saved-request-detail>
     </bottom-sheet>
 
