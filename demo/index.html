@@ -81,6 +81,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     <paper-toast id="navigarionToast" duration="7000"></paper-toast>
     <paper-toast id="updateToast" duration="7000"></paper-toast>
+    <paper-toast id="exportToast" duration="7000"></paper-toast>
   </div>
   <script>
   /* global DataGenerator */
@@ -109,6 +110,16 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     var msg = 'Request: ' + e.detail.oldId + ', has been updated.';
     msg += ' New ID: ' + e.detail.request._id;
     toast('updateToast', msg);
+  });
+
+  window.addEventListener('export-project', function(e) {
+    e.preventDefault();
+    e.detail.result = Promise.resolve();
+    toast('updateToast', 'Export requested');
+  });
+
+  window.addEventListener('google-autorize', function() {
+    document.body.dispatchEvent(new CustomEvent('google-signin-success', {bubbles: true}));
   });
   </script>
 </body>

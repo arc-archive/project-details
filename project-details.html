@@ -176,7 +176,8 @@ Custom property | Description | Default
           <paper-icon-button class="dropdown-trigger" icon="arc:more-vert"></paper-icon-button>
           <paper-listbox class="dropdown-content">
             <paper-icon-item on-tap="toggleEdit"><iron-icon icon="arc:edit" item-icon></iron-icon>Edit</paper-icon-item>
-            <paper-icon-item on-tap="_onExportAll"><iron-icon icon="arc:archive" item-icon></iron-icon>Export</paper-icon-item>
+            <paper-icon-item on-tap="_onExportAll"><iron-icon icon="arc:archive" item-icon></iron-icon>Export to file</paper-icon-item>
+            <paper-icon-item on-tap="_onExportAllDrive"><iron-icon icon="arc:drive-color" item-icon></iron-icon>Export to Google Drive</paper-icon-item>
             <paper-icon-item on-tap="_deleteProject"><iron-icon icon="arc:clear" item-icon></iron-icon>Delete</paper-icon-item>
           </paper-listbox>
         </paper-menu-button>
@@ -218,6 +219,8 @@ Custom property | Description | Default
     <paper-toast id="revertError" class="error-toast" text="Unable to revert changes. Please, report an issue."></paper-toast>
     <paper-toast id="reorderError" class="error-toast" text="Unable to reorder items. Please, report an issue."></paper-toast>
     <paper-toast id="noExport" class="error-toast" text="Export module not found. Please, report an issue."></paper-toast>
+    <paper-toast id="driveAuthRequired" class="error-toast" text="Authorization for Google Drive is required."></paper-toast>
+    <paper-toast id="driveSaved" text="Project saved on Google Drive."></paper-toast>
     <paper-toast id="deleteToast" duration="7000">
       <paper-button class="revert-button" on-tap="revertDeleted">Revert</paper-button>
     </paper-toast>
@@ -485,25 +488,76 @@ Custom property | Description | Default
         this.$.revertError.opened = true;
       });
     },
+
+    /**
+     * Runs a function after requesting authorization tokien.
+     *
+     * @param {String} scope Authorization scope
+     * @param {Function} callback A callback function to be called when the state
+     * is known. It's only arguments is a flag determining if the user is signed in.
+     */
+    _runWhenAuthorized: function(scope, callback) {
+      var readyFn;
+      var errorFn;
+      readyFn = function() {
+        window.removeEventListener('google-signin-success', readyFn);
+        window.removeEventListener('google-signout', errorFn);
+        callback(true);
+      };
+      errorFn = function() {
+        window.removeEventListener('google-signin-success', readyFn);
+        window.removeEventListener('google-signout', errorFn);
+        callback(false);
+      };
+      window.addEventListener('google-signin-success', readyFn);
+      window.addEventListener('google-signout', errorFn);
+      this.fire('google-autorize', {
+        scope: scope
+      });
+    },
     // Handles the export event. Fires `export-project` custom event
     _onExport: function(e) {
-      this._exportItems(e.detail.items);
+      var items = e.detail.items;
+      if (e.detail.destination === 'drive') {
+        this._runWhenAuthorized('https://www.googleapis.com/auth/drive.file', (state) => {
+          if (state) {
+            this._exportItems(items, e.detail.destination);
+          } else {
+            this.$.driveAuthRequired.opened = true;
+          }
+        });
+      } else {
+        this._exportItems(items, e.detail.destination);
+      }
     },
     // Menu item handler to export all project data
     _onExportAll: function() {
-      this._exportItems(this.requests);
+      this._exportItems(this.requests, 'file');
+    },
+
+    _onExportAllDrive: function() {
+      this._runWhenAuthorized('https://www.googleapis.com/auth/drive.file', (state) => {
+        if (state) {
+          this._exportItems(this.requests, 'drive');
+        } else {
+          this.$.driveAuthRequired.opened = true;
+        }
+      });
     },
     /**
      * Dispatches the `export-project` event with relevant data.
      *
      * @param {Array} requests List of request to export with the project.
      */
-    _exportItems: function(requests) {
+    _exportItems: function(requests, destination) {
+      destination = destination || 'file';
       var project = this.project;
 
       var event = this.fire('export-project', {
         project: project,
-        requests: requests
+        requests: requests,
+        file: 'arc-project-export.json',
+        destination: destination
       }, {
         cancelable: true,
         composed: true
@@ -513,6 +567,11 @@ Custom property | Description | Default
         this.$.noExport.opened = true;
         return;
       }
+      event.detail.result.then(() => {
+        if (destination === 'drive') {
+          this.$.driveSaved.opened = true;
+        }
+      });
     },
     // Handler for the list reorder event. Updates items order in the datastore.
     _onReorder: function() {
