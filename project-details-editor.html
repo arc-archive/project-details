@@ -11,18 +11,12 @@ WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 License for the specific language governing permissions and limitations under
 the License.
 -->
-<link rel="import" href="../polymer/polymer.html">
+<link rel="import" href="../polymer/polymer-element.html">
 <link rel="import" href="../paper-input/paper-input.html">
 <link rel="import" href="../paper-input/paper-textarea.html">
 <link rel="import" href="../paper-button/paper-button.html">
 <link rel="import" href="../paper-toast/paper-toast.html">
-<!--
-An element to render project details editor.
 
-@group UI Elements
-@element project-details-editor
-@demo demo/index.html
--->
 <dom-module id="project-details-editor">
   <template>
     <style>
@@ -49,28 +43,18 @@ An element to render project details editor.
     <paper-toast id="missingName" text="Project name cannot be empty."></paper-toast>
   </template>
   <script>
-    Polymer({
-      is: 'project-details-editor',
-      /**
-       * Fired when the user cancelled the action-button.
-       *
-       * This event does not bubbles.
-       *
-       * @event cancel-edit
-       */
-      /**
-       * Fired when the user requested to save the data.
-       * This element does not recognize if any change actually has been made
-       * to the data so parent element may want to check if any data actually
-       * changed.
-       *
-       * This event does not bubbles.
-       *
-       * @event save-edit
-       * @param {String} name Updated name
-       * @param {String} description Updated description
-       */
-      properties: {
+  /**
+   * An element to render project details editor.
+   *
+   * @polymer
+   * @customElement
+   * @memberof UiElements
+   * @demo demo/index.html
+   */
+  class ProjectDetailsEditor extends Polymer.Element {
+    static get is() { return 'project-details-editor'; }
+    static get properties() {
+      return {
         /**
          * Name of the project.
          */
@@ -79,31 +63,53 @@ An element to render project details editor.
          * The description of the project
          */
         description: String
-      },
-      /**
-       * Sends the `cancel-edit` custom event to the parent element.
-       */
-      cancel: function() {
-        this.fire('cancel-edit', {}, {
-          bubbles: false
-        });
-      },
-      /**
-       * Sends the `save-edit` custom event to the parent element.
-       */
-      save: function() {
-        var name = this.name.trim();
-        if (!name) {
-          this.$.missingName.opened = true;
-          return;
-        }
-        this.fire('save-edit', {
+      };
+    }
+    /**
+     * Sends the `cancel-edit` custom event to the parent element.
+     */
+    cancel() {
+      this.dispatchEvent(new CustomEvent('cancel-edit', {
+        composed: true
+      }));
+    }
+    /**
+     * Sends the `save-edit` custom event to the parent element.
+     */
+    save() {
+      const name = this.name.trim();
+      if (!name) {
+        this.$.missingName.opened = true;
+        return;
+      }
+      this.dispatchEvent(new CustomEvent('save-edit', {
+        composed: true,
+        detail: {
           name: this.name,
           description: this.description
-        }, {
-          bubbles: false
-        });
-      }
-    });
+        }
+      }));
+    }
+    /**
+     * Fired when the user cancelled the action-button.
+     *
+     * This event does not bubbles.
+     *
+     * @event cancel-edit
+     */
+    /**
+     * Fired when the user requested to save the data.
+     * This element does not recognize if any change actually has been made
+     * to the data so parent element may want to check if any data actually
+     * changed.
+     *
+     * This event does not bubbles.
+     *
+     * @event save-edit
+     * @param {String} name Updated name
+     * @param {String} description Updated description
+     */
+  }
+  window.customElements.define(ProjectDetailsEditor.is, ProjectDetailsEditor);
   </script>
 </dom-module>

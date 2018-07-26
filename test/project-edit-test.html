@@ -1,28 +1,22 @@
 <!doctype html>
-<!--
-@license
-Copyright (c) 2015 The Polymer Project Authors. All rights reserved.
-This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
-The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
-The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
-Code distributed by Google as part of the polymer project is also
-subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
--->
 <html>
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, minimum-scale=1.0, initial-scale=1.0, user-scalable=yes">
-
-    <script src="../../webcomponentsjs/webcomponents-lite.js"></script>
+    <script src="../../webcomponentsjs/webcomponents-loader.js"></script>
     <script src="../../web-component-tester/browser.js"></script>
     <script src="../../iron-test-helpers/test-helpers.js"></script>
     <script src="../../iron-test-helpers/mock-interactions.js"></script>
-    <script src="data-generator.js"></script>
     <script src="../../chance/dist/chance.min.js"></script>
+    <script src="../demo/data-generator.js"></script>
+    <link rel="import" href="../../arc-models/request-model.html">
+    <link rel="import" href="../../arc-models/project-model.html">
+    <link rel="import" href="../../app-pouchdb/pouchdb.html">
     <link rel="import" href="../project-details.html">
   </head>
   <body>
-
+    <request-model></request-model>
+    <project-model></project-model>
     <test-fixture id="basic">
       <template>
         <project-details></project-details>
@@ -32,11 +26,11 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     <script>
     /* global DataGenerator, TestHelpers, fixture, assert */
     suite('project edit', function() {
-      var projectId;
-      var counter = 0;
+      let projectId;
+      let counter = 0;
       suiteSetup(function() {
         return DataGenerator.generateData(10)
-        .then(result => {
+        .then((result) => {
           projectId = result;
         });
       });
@@ -45,22 +39,22 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         return DataGenerator.destroyData();
       });
 
-      var element;
-      var loaded = [false, false];
+      let element;
+      let loaded = [false, false];
       function doneWhenLoaded(element, done) {
         function checkDone() {
           if (loaded[0] && loaded[1]) {
             done();
           }
         }
-        var c1 = function(e) {
+        const c1 = function(e) {
           if (e.detail.value === false) {
             element.removeEventListener('loading-project-changed', c1);
             loaded[0] = true;
             checkDone();
           }
         };
-        var c2 = function(e) {
+        const c2 = function(e) {
           if (e.detail.value === false) {
             element.removeEventListener('loading-requests-changed', c2);
             loaded[1] = true;
@@ -78,14 +72,14 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       });
 
       test('Enditor is not in the DOM', function() {
-        var node = Polymer.dom(element.root).querySelector('project-details-editor');
+        const node = element.shadowRoot.querySelector('project-details-editor');
         assert.notOk(node);
       });
 
       test('Turning on the editor', function() {
         element.edit = true;
         TestHelpers.forceXIfStamp(element);
-        var node = Polymer.dom(element.root).querySelector('project-details-editor');
+        var node = element.shadowRoot.querySelector('project-details-editor');
         assert.ok(node);
       });
 
@@ -98,41 +92,40 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         }
       };
 
-      function updateProject() {
+      function updateProject(done) {
         element.edit = true;
-        TestHelpers.forceXIfStamp(element);
-        projectUpdateDetail.detail.name = updateName + '-' + String(counter);
-        projectUpdateDetail.detail.description = updateDescription + '-' + String(counter);
-        counter++;
-        element._saveEdit(projectUpdateDetail);
+        flush(() => {
+          projectUpdateDetail.detail.name = updateName + '-' + String(counter);
+          projectUpdateDetail.detail.description = updateDescription + '-' + String(counter);
+          counter++;
+          element._saveEdit(projectUpdateDetail);
+          done();
+        });
       }
 
       test('Updates name and description in the model', function() {
-        updateProject();
-        assert.equal(element.project.name, projectUpdateDetail.detail.name ,
-          'Name is updated');
-        assert.equal(element.project.description, projectUpdateDetail.detail.description,
-          'Description is updated');
-      });
-
-      test('The project-object-changed custom event is handled by internal data model', function() {
-        updateProject();
-        assert.isFalse(element.$.noModel.opened);
+        updateProject(() => {
+          assert.equal(element.project.name, projectUpdateDetail.detail.name ,
+            'Name is updated');
+          assert.equal(element.project.description, projectUpdateDetail.detail.description,
+            'Description is updated');
+        });
       });
 
       test('Closes the editor', function() {
-        updateProject();
-        assert.isFalse(element.edit);
+        updateProject(() => {
+          assert.isFalse(element.edit);
+        });
       });
 
-      test('Non-cancelable project-object-changed event is dispatched', function(done) {
+      test('Dispatches project-object-changed event', function(done) {
         element.addEventListener('project-object-changed', function(e) {
-          if (e.cancelable) {
+          if (!e.cancelable) {
             return;
           }
           done();
         });
-        updateProject();
+        updateProject(() => {});
       });
     });
     </script>
