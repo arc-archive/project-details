@@ -46,7 +46,8 @@
     "chance": "^1.0.11",
     "arc-models": "advanced-rest-client/arc-models#2.0.0-preview",
     "app-pouchdb": "PolymerElements/app-pouchdb#^2.0.0",
-    "web-animations-js": "web-animations/web-animations-js#^2.3"
+    "web-animations-js": "web-animations/web-animations-js#^2.3",
+    "request-saver": "advanced-rest-client/request-saver#2.0.0-preview"
   },
   "ignore": [
     "**/.*",
