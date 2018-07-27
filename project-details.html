@@ -28,6 +28,7 @@ the License.
 <link rel="import" href="../paper-fab/paper-fab.html">
 <link rel="import" href="../marked-element/marked-element.html">
 <link rel="import" href="../markdown-styles/markdown-styles.html">
+<link rel="import" href="../paper-styles/shadow.html">
 <link rel="import" href="project-details-editor.html">
 <dom-module id="project-details">
   <template>
@@ -96,6 +97,7 @@ the License.
       min-width: 40%;
       max-width: 60%;
       left: 20%;
+      @apply --shadow-elevation-6dp;
     }
 
     #requestDetailsContainer paper-fab {
