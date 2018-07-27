@@ -84,6 +84,7 @@ the License.
     .primary-button {
       background-color: var(--primary-color);
       color: #fff;
+
     }
 
     project-details-editor {
@@ -133,10 +134,10 @@ the License.
         <paper-menu-button>
           <paper-icon-button slot="dropdown-trigger" icon="arc:more-vert"></paper-icon-button>
           <paper-listbox slot="dropdown-content">
-            <paper-icon-item on-tap="toggleEdit"><iron-icon icon="arc:edit" slot="item-icon"></iron-icon>Edit</paper-icon-item>
-            <paper-icon-item on-tap="_onExportAll"><iron-icon icon="arc:archive" slot="item-icon"></iron-icon>Export to file</paper-icon-item>
-            <paper-icon-item on-tap="_onExportAllDrive"><iron-icon icon="arc:drive-color" slot="item-icon"></iron-icon>Export to Google Drive</paper-icon-item>
-            <paper-icon-item on-tap="_deleteProject"><iron-icon icon="arc:clear" slot="item-icon"></iron-icon>Delete</paper-icon-item>
+            <paper-icon-item on-click="toggleEdit"><iron-icon icon="arc:edit" slot="item-icon"></iron-icon>Edit</paper-icon-item>
+            <paper-icon-item on-click="_onExportAll"><iron-icon icon="arc:archive" slot="item-icon"></iron-icon>Export to file</paper-icon-item>
+            <paper-icon-item on-click="_onExportAllDrive"><iron-icon icon="arc:drive-color" slot="item-icon"></iron-icon>Export to Google Drive</paper-icon-item>
+            <paper-icon-item on-click="_deleteProject"><iron-icon icon="arc:clear" slot="item-icon"></iron-icon>Delete</paper-icon-item>
           </paper-listbox>
         </paper-menu-button>
       </div>
@@ -147,7 +148,7 @@ the License.
           </marked-element>
         </template>
         <template is="dom-if" if="[[!project.description]]">
-          <p class="description-value empty">No description <paper-button on-tap="toggleEdit" class="add-description">Add</paper-button></p>
+          <p class="description-value empty">No description <paper-button on-click="toggleEdit" class="add-description">Add</paper-button></p>
         </template>
       </div>
     </template>
@@ -166,7 +167,7 @@ the License.
         on-list-item-details="_onDetails"></project-requests-list>
     </template>
     <template is="dom-if" if="[[!hasRequests]]">
-      <p>This project has no requests. <paper-button on-tap="_deleteEmpty" class="primary-button" raised>Delete project</paper-button></p>
+      <p>This project has no requests. <paper-button on-click="_deleteEmpty" class="primary-button" raised>Delete project</paper-button></p>
     </template>
     <legacyproject-related-requests data="{{requests}}" full-query></legacyproject-related-requests>
     <paper-toast id="noModel" class="error-toast" text="Model not found. Please, report an issue."></paper-toast>
@@ -175,12 +176,12 @@ the License.
     <paper-toast id="noExport" class="error-toast" text="Export module not found. Please, report an issue."></paper-toast>
     <paper-toast id="driveSaved" text="Project saved on Google Drive."></paper-toast>
     <paper-toast id="deleteToast" duration="7000">
-      <paper-button class="revert-button" on-tap="revertDeleted">Revert</paper-button>
+      <paper-button class="revert-button" on-click="revertDeleted">Revert</paper-button>
     </paper-toast>
     <paper-toast id="errorToast" class="error-toast" duration="5000"></paper-toast>
 
     <bottom-sheet id="requestDetailsContainer" on-iron-overlay-opened="_resizeSheetContent">
-      <paper-fab icon="arc:keyboard-arrow-right" data-action="load-request-detail" title="Load request" on-tap="_loadRequestDetails"></paper-fab>
+      <paper-fab icon="arc:keyboard-arrow-right" data-action="load-request-detail" title="Load request" on-click="_loadRequestDetails"></paper-fab>
       <saved-request-detail id="requestDetails" on-delete-request="_deleteRequestDetails" on-edit-request="_editRequestDetails"></saved-request-detail>
     </bottom-sheet>
 
@@ -193,6 +194,7 @@ the License.
       <p>This will remove the project and all request data associated with the project.</p>
       <p>Maybe you should create a backup first?</p>
       <div class="buttons">
+        <paper-button on-click="_onExportAll">Create file backup</paper-button>
         <paper-button dialog-dismiss autofocus>Cancel</paper-button>
         <paper-button dialog-confirm class="action-button">Destroy</paper-button>
       </div>
