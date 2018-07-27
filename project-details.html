@@ -348,6 +348,7 @@ the License.
 
       if (!e.defaultPrevented) {
         console.warn('project-read event not handled!');
+        this._setLoadingProject(false);
         return;
       }
       e.detail.result
