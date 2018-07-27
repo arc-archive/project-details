@@ -26,7 +26,7 @@
     suite('project delete', function() {
       let projectId;
       let element;
-      const loaded = [false, false];
+      let loaded = [false, false];
       function doneWhenLoaded(element, done) {
         function checkDone() {
           if (loaded[0] && loaded[1]) {
@@ -50,6 +50,7 @@
         element.addEventListener('loading-project-changed', c1);
         element.addEventListener('loading-requests-changed', c2);
       }
+
       setup(function(done) {
         DataGenerator.generateData(10)
         .then((result) => {
@@ -107,7 +108,7 @@
           }
         })
         .then(() => {
-          assert.equal(spy1.callCount, 2, 'Project delete flow is OK');
+          assert.equal(spy1.callCount, 1, 'Project delete flow is OK');
           assert.equal(spy2.callCount, 1, 'Request delete flow is OK');
         });
       });

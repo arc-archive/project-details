@@ -3,18 +3,20 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, minimum-scale=1.0, initial-scale=1.0, user-scalable=yes">
-    <script src="../../webcomponentsjs/webcomponents-lite.js"></script>
+    <script src="../../webcomponentsjs/webcomponents-loader.js"></script>
     <script src="../../web-component-tester/browser.js"></script>
-    <script src="../../iron-test-helpers/mock-interactions.js"></script>
+    <script src="../../chance/dist/chance.min.js"></script>
     <script src="../demo/data-generator.js"></script>
     <link rel="import" href="../../arc-models/request-model.html">
     <link rel="import" href="../../arc-models/project-model.html">
     <link rel="import" href="../../app-pouchdb/pouchdb.html">
+    <link rel="import" href="../../request-saver/request-saver.html">
     <link rel="import" href="../project-details.html">
   </head>
   <body>
     <request-model></request-model>
     <project-model></project-model>
+    <request-saver></request-saver>
     <test-fixture id="basic">
       <template>
         <project-details></project-details>
@@ -27,19 +29,21 @@
       let element;
       let ev;
       let requests;
-      let projects;
       suiteSetup(function() {
-        return DataGenerator.insertSavedIfNotExists({
-          requestsSize: 10
+        return DataGenerator.generateData(12)
+        .then(() => {
+          const savedDb = new PouchDB('saved-requests');
+          return savedDb.allDocs({
+            include_docs: true
+          });
         })
-        .then((data) => {
-          requests = data.requests;
-          projects = data.projects;
+        .then((docs) => {
+          requests = docs.rows.map((item) => item.doc);
         });
       });
 
       suiteTeardown(function() {
-        return DataGenerator.destroySavedRequestData();
+        return DataGenerator.destroyData();
       });
 
       setup(function() {
@@ -139,7 +143,7 @@
       });
 
       test('Fires save-request-data on editor save action', function(done) {
-        element._onDetails(ve);
+        element._onDetails(ev);
         let state = 0;
         element.addEventListener('iron-overlay-opened', function f() {
           if (state === 0) {

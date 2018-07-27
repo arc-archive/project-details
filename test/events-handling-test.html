@@ -3,10 +3,8 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, minimum-scale=1.0, initial-scale=1.0, user-scalable=yes">
-    <script src="../../webcomponentsjs/webcomponents-lite.js"></script>
+    <script src="../../webcomponentsjs/webcomponents-loader.js"></script>
     <script src="../../web-component-tester/browser.js"></script>
-    <script src="../../iron-test-helpers/test-helpers.js"></script>
-    <script src="../../iron-test-helpers/mock-interactions.js"></script>
     <script src="../../chance/dist/chance.min.js"></script>
     <script src="../demo/data-generator.js"></script>
     <link rel="import" href="../../arc-models/request-model.html">
@@ -24,12 +22,12 @@
     </test-fixture>
 
     <script>
-    /* global DataGenerator, fixture, assert, sinon */
+    /* global DataGenerator */
     suite('Events handling', function() {
       let projectId;
       suiteSetup(function() {
         return DataGenerator.generateData(10)
-        .then(result => {
+        .then((result) => {
           projectId = result;
         });
       });
@@ -39,7 +37,7 @@
       });
 
       let element;
-      const loaded = [false, false];
+      let loaded = [false, false];
       function doneWhenLoaded(element, done) {
         function checkDone() {
           if (loaded[0] && loaded[1]) {
