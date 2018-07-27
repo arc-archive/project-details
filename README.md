@@ -6,21 +6,10 @@
 
 A project details panel for the Advanced REST Client
 
-<!---
-```
-<custom-element-demo>
-  <template>
-    <link rel="import" href="project-details.html">
-    <next-code-block></next-code-block>
-  </template>
-</custom-element-demo>
-```
--->
-
 ```html
 <project-details></project-details>
 ```
 
 ### API components
 
-This components is a part of API components ecosystem: https://elements.advancedrestclient.com/
+This components is a part of [API components ecosystem](https://elements.advancedrestclient.com/)
