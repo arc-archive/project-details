@@ -712,6 +712,7 @@ the License.
       this.dispatchEvent(new CustomEvent('navigate', {
         bubbles: true,
         composed: true,
+        cancelable: true,
         detail: {
           base: 'request',
           type: 'saved',
