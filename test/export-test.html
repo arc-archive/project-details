@@ -6,7 +6,8 @@
     <script src="../../webcomponentsjs/webcomponents-loader.js"></script>
     <script src="../../web-component-tester/browser.js"></script>
     <script src="../../chance/dist/chance.min.js"></script>
-    <script src="../demo/data-generator.js"></script>
+    <script src="data-helper.js"></script>
+    <link rel="import" href="../../arc-data-generator/arc-data-generator.html">
     <link rel="import" href="../../arc-models/request-model.html">
     <link rel="import" href="../../arc-models/project-model.html">
     <link rel="import" href="../../app-pouchdb/pouchdb.html">
@@ -22,31 +23,45 @@
     </test-fixture>
 
     <script>
-    /* global fixture, assert, sinon */
+    /* global DataGenerator, DataHelper */
     suite('_onExportAll()', function() {
       let element;
+      let projectId;
+      suiteSetup(function() {
+        return DataHelper.generateData()
+        .then((result) => {
+          projectId = result.projectId;
+        });
+      });
+
+      suiteTeardown(function() {
+        return DataGenerator.destroySavedRequestData();
+      });
       setup(function() {
         element = fixture('basic');
+        element.projectId = projectId;
+        return DataHelper.doneWhenLoaded(element);
       });
-      test('Fires export-project event', function() {
+
+      test('Fires export-data event', function() {
         const spy = sinon.spy();
-        element.addEventListener('export-project', spy);
+        element.addEventListener('export-data', spy);
         element._onExportAll();
         assert.isTrue(spy.calledOnce);
       });
-      test('export-project is cancelable', function(done) {
-        element.addEventListener('export-project', function f(e) {
+      test('export-data is cancelable', function(done) {
+        element.addEventListener('export-data', function f(e) {
           e.preventDefault();
-          element.removeEventListener('export-project', f);
+          element.removeEventListener('export-data', f);
           assert.isTrue(e.cancelable);
           done();
         });
         element._onExportAll();
       });
       test('Export destination is set', function(done) {
-        element.addEventListener('export-project', function f(e) {
+        element.addEventListener('export-data', function f(e) {
           e.preventDefault();
-          element.removeEventListener('export-project', f);
+          element.removeEventListener('export-data', f);
           assert.equal(e.detail.destination, 'file');
           done();
         });
@@ -56,13 +71,26 @@
 
     suite('_onExportAllDrive()', function() {
       let element;
+      let projectId;
+      suiteSetup(function() {
+        return DataHelper.generateData()
+        .then((result) => {
+          projectId = result.projectId;
+        });
+      });
+
+      suiteTeardown(function() {
+        return DataGenerator.destroySavedRequestData();
+      });
       setup(function() {
         element = fixture('basic');
+        element.projectId = projectId;
+        return DataHelper.doneWhenLoaded(element);
       });
 
       test('Export destination is set', function(done) {
-        element.addEventListener('export-project', function f(e) {
-          element.removeEventListener('export-project', f);
+        element.addEventListener('export-data', function f(e) {
+          element.removeEventListener('export-data', f);
           assert.equal(e.detail.destination, 'drive');
           done();
         });

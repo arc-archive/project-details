@@ -5,10 +5,9 @@
     <meta name="viewport" content="width=device-width, minimum-scale=1.0, initial-scale=1.0, user-scalable=yes">
     <script src="../../webcomponentsjs/webcomponents-loader.js"></script>
     <script src="../../web-component-tester/browser.js"></script>
-    <script src="../../iron-test-helpers/test-helpers.js"></script>
-    <script src="../../iron-test-helpers/mock-interactions.js"></script>
     <script src="../../chance/dist/chance.min.js"></script>
-    <script src="../demo/data-generator.js"></script>
+    <script src="data-helper.js"></script>
+    <link rel="import" href="../../arc-data-generator/arc-data-generator.html">
     <link rel="import" href="../../arc-models/request-model.html">
     <link rel="import" href="../../arc-models/project-model.html">
     <link rel="import" href="../../app-pouchdb/pouchdb.html">
@@ -24,63 +23,35 @@
     </test-fixture>
 
     <script>
-    /* global DataGenerator, TestHelpers, fixture, assert */
+    /* global DataGenerator, DataHelper */
     suite('project edit', function() {
       let projectId;
       let counter = 0;
       suiteSetup(function() {
-        return DataGenerator.generateData(10)
+        return DataHelper.generateData()
         .then((result) => {
-          projectId = result;
+          projectId = result.projectId;
         });
       });
 
       suiteTeardown(function() {
-        return DataGenerator.destroyData();
+        return DataGenerator.destroySavedRequestData();
       });
 
       let element;
-      let loaded = [false, false];
-      function doneWhenLoaded(element, done) {
-        function checkDone() {
-          if (loaded[0] && loaded[1]) {
-            done();
-          }
-        }
-        const c1 = function(e) {
-          if (e.detail.value === false) {
-            element.removeEventListener('loading-project-changed', c1);
-            loaded[0] = true;
-            checkDone();
-          }
-        };
-        const c2 = function(e) {
-          if (e.detail.value === false) {
-            element.removeEventListener('loading-requests-changed', c2);
-            loaded[1] = true;
-            checkDone();
-          }
-        };
-        element.addEventListener('loading-project-changed', c1);
-        element.addEventListener('loading-requests-changed', c2);
-      }
-      setup(function(done) {
+      setup(function() {
         element = fixture('basic');
         element.projectId = projectId;
-        loaded = [false, false];
-        doneWhenLoaded(element, done);
+        return DataHelper.doneWhenLoaded(element);
       });
 
-      test('Enditor is not in the DOM', function() {
-        const node = element.shadowRoot.querySelector('project-details-editor');
-        assert.notOk(node);
-      });
-
-      test('Turning on the editor', function() {
+      test('Turning on the editor', function(done) {
         element.edit = true;
-        TestHelpers.forceXIfStamp(element);
-        var node = element.shadowRoot.querySelector('project-details-editor');
-        assert.ok(node);
+        flush(() => {
+          const node = element.shadowRoot.querySelector('project-details-editor');
+          assert.ok(node);
+          done();
+        });
       });
 
       const updateName = 'test-name';
@@ -105,7 +76,7 @@
 
       test('Updates name and description in the model', function() {
         updateProject(() => {
-          assert.equal(element.project.name, projectUpdateDetail.detail.name ,
+          assert.equal(element.project.name, projectUpdateDetail.detail.name,
             'Name is updated');
           assert.equal(element.project.description, projectUpdateDetail.detail.description,
             'Description is updated');
@@ -129,6 +100,5 @@
       });
     });
     </script>
-
   </body>
 </html>

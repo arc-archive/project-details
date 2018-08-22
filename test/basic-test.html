@@ -6,29 +6,29 @@
     <script src="../../webcomponentsjs/webcomponents-loader.js"></script>
     <script src="../../web-component-tester/browser.js"></script>
     <script src="../../chance/dist/chance.min.js"></script>
-    <script src="../demo/data-generator.js"></script>
+    <script src="data-helper.js"></script>
     <link rel="import" href="../../arc-models/request-model.html">
     <link rel="import" href="../../arc-models/project-model.html">
     <link rel="import" href="../../app-pouchdb/pouchdb.html">
-    <link rel="import" href="../../request-saver/request-saver.html">
+    <link rel="import" href="../../arc-data-generator/arc-data-generator.html">
     <link rel="import" href="../project-details.html">
   </head>
   <body>
     <request-model></request-model>
     <project-model></project-model>
-    <request-saver></request-saver>
-    <test-fixture id="basic">
+
+    <test-fixture id="Basic">
       <template>
         <project-details></project-details>
       </template>
     </test-fixture>
 
     <script>
-    /* global DataGenerator, fixture, assert */
+    /* global DataGenerator, DataHelper */
     suite('basic', function() {
       let element;
       setup(function() {
-        element = fixture('basic');
+        element = fixture('Basic');
       });
 
       test('requests are not set', function() {
@@ -50,52 +50,29 @@
 
     suite('basic - after initialization', function() {
       let projectId;
+      let requests;
       suiteSetup(function() {
-        return DataGenerator.generateData(10)
+        return DataHelper.generateData()
         .then((result) => {
-          projectId = result;
+          projectId = result.projectId;
+          requests = result.requests;
         });
       });
 
       suiteTeardown(function() {
-        return DataGenerator.destroyData();
+        return DataGenerator.destroySavedRequestData();
       });
 
       let element;
-      let loaded = [false, false];
-      function doneWhenLoaded(element, done) {
-        function checkDone() {
-          if (loaded[0] && loaded[1]) {
-            done();
-          }
-        }
-        const c1 = function(e) {
-          if (e.detail.value === false) {
-            element.removeEventListener('loading-project-changed', c1);
-            loaded[0] = true;
-            checkDone();
-          }
-        };
-        const c2 = function(e) {
-          if (e.detail.value === false) {
-            element.removeEventListener('loading-requests-changed', c2);
-            loaded[1] = true;
-            checkDone();
-          }
-        };
-        element.addEventListener('loading-project-changed', c1);
-        element.addEventListener('loading-requests-changed', c2);
-      }
-      setup(function(done) {
-        element = fixture('basic');
+      setup(function() {
+        element = fixture('Basic');
         element.projectId = projectId;
-        loaded = [false, false];
-        doneWhenLoaded(element, done);
+        return DataHelper.doneWhenLoaded(element);
       });
 
       test('Requests are set', function() {
         assert.typeOf(element.requests, 'array');
-        assert.lengthOf(element.requests, 10);
+        assert.lengthOf(element.requests, requests.length);
       });
 
       test('Project is set', function() {

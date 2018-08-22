@@ -6,17 +6,17 @@
     <script src="../../webcomponentsjs/webcomponents-loader.js"></script>
     <script src="../../web-component-tester/browser.js"></script>
     <script src="../../chance/dist/chance.min.js"></script>
-    <script src="../demo/data-generator.js"></script>
+    <script src="data-helper.js"></script>
+    <link rel="import" href="../../arc-data-generator/arc-data-generator.html">
     <link rel="import" href="../../arc-models/request-model.html">
     <link rel="import" href="../../arc-models/project-model.html">
     <link rel="import" href="../../app-pouchdb/pouchdb.html">
-    <link rel="import" href="../../request-saver/request-saver.html">
     <link rel="import" href="../project-details.html">
   </head>
   <body>
     <request-model></request-model>
     <project-model></project-model>
-    <request-saver></request-saver>
+
     <test-fixture id="basic">
       <template>
         <project-details></project-details>
@@ -24,42 +24,39 @@
     </test-fixture>
 
     <script>
-    /* global DataGenerator */
+    /* global DataGenerator, DataHelper */
     suite('Details panel', function() {
       let element;
       let ev;
       let requests;
+      let projectId;
       suiteSetup(function() {
-        return DataGenerator.generateData(12)
-        .then(() => {
-          const savedDb = new PouchDB('saved-requests');
-          return savedDb.allDocs({
-            include_docs: true
-          });
-        })
-        .then((docs) => {
-          requests = docs.rows.map((item) => item.doc);
+        return DataHelper.generateData()
+        .then((result) => {
+          projectId = result.projectId;
+          requests = result.requests;
         });
       });
 
       suiteTeardown(function() {
-        return DataGenerator.destroyData();
+        return DataGenerator.destroySavedRequestData();
       });
 
       setup(function() {
         element = fixture('basic');
-        element.items = requests;
         ev = {
           detail: {
             item: requests[0]
           }
         };
+        element.projectId = projectId;
+        return DataHelper.doneWhenLoaded(element);
       });
 
-      test('_onDetails opend the detail panel', function() {
+      test('_onDetails opens the detail panel', function() {
         element._onDetails(ev);
         assert.isTrue(element.$.requestDetails.request === ev.detail.item);
-        assert.isTrue(element.$.requestDetailsContainer.opened);
+        assert.isTrue(element.detailsOpened);
       });
 
       test('Fires navigate event for opened request details', function(done) {
@@ -115,8 +112,8 @@
           } else {
             element.removeEventListener('iron-overlay-opened', f);
             assert.isUndefined(element.$.requestDetails.request, 'Request on details panel is cleared');
-            assert.isFalse(element.$.requestDetailsContainer.opened, 'Details panel is closed');
-            assert.isTrue(element.$.requestEditorContainer.opened, 'Editor panel is opened');
+            assert.isFalse(element.detailsOpened, 'Details panel is closed');
+            assert.isTrue(element.editorOpened, 'Editor panel is opened');
             assert.isTrue(element.$.requestEditor.request === ev.detail.item,
               'Editor contains a request item.');
             done();
@@ -136,7 +133,7 @@
             element._cancelRequestEdit();
 
             assert.isUndefined(element.$.requestEditor.request, 'Request on the editor is cleared');
-            assert.isFalse(element.$.requestEditorContainer.opened, 'Editor is closed');
+            assert.isFalse(element.editorOpened, 'Editor is closed');
             done();
           }
         });
@@ -151,11 +148,9 @@
             state++;
           } else {
             element.removeEventListener('iron-overlay-opened', f);
-            element.addEventListener('save-request-data', function f2(e) {
+            element.addEventListener('save-request', function f2(e) {
               element.removeEventListener('iron-overlay-opened', f2);
               assert.isTrue(e.cancelable, 'Event is cancelable');
-              assert.typeOf(e.detail.request, 'object', 'Request object is set');
-              assert.typeOf(e.detail.opts, 'object', 'Opts object is set');
               done();
             });
             const editor = element.shadowRoot.querySelector('saved-request-editor');
