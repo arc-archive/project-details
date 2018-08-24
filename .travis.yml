@@ -13,7 +13,6 @@ addons:
       - google-chrome-stable
   sauce_connect: true
 script:
-  - npm run lint
   - xvfb-run polymer test --plugin local
   - >-
     if [ "${TRAVIS_PULL_REQUEST}" = "false" ]; then polymer test --plugin sauce
