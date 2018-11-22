@@ -10,7 +10,6 @@
 
 /// <reference path="../polymer/types/polymer-element.d.ts" />
 /// <reference path="../project-requests-list/project-requests-list.d.ts" />
-/// <reference path="../legacyproject-related-requests/legacyproject-related-requests.d.ts" />
 /// <reference path="../paper-toast/paper-toast.d.ts" />
 /// <reference path="../paper-button/paper-button.d.ts" />
 /// <reference path="../paper-icon-button/paper-icon-button.d.ts" />
@@ -39,7 +38,7 @@ declare namespace UiElements {
    * (`arc-models`).
    *
    * It doesn't support data export. It must be used with another element
-   * that handles `export-project` custom event.
+   * that handles `export-data` custom event.
    *
    * The element dispatches `navigate` custom event when the navigation occures.
    * Hosting application shouls handle the event and navigate the used into
@@ -47,7 +46,7 @@ declare namespace UiElements {
    *
    * ### Example
    *
-   * ```
+   * ```html
    * <project-details project-id="some-id"></project-details>
    * ```
    *
@@ -59,20 +58,30 @@ declare namespace UiElements {
    * Custom property | Description | Default
    * ----------------|-------------|----------
    * `--project-details` | Mixin applied to the element | `{}`
-   * `--project-details-description-color` | Color of the project description
-   * text | `rgba(0, 0, 0, 0.74)`
+   * `--project-details-description-button-color` | Color od the add description button | `--primary-color`
+   * `--project-details-description-color` | Color of the project description text | `rgba(0, 0, 0, 0.74)`
    * `--project-details-description-max-width` | Max width of the project description | `700px`
-   * `--warning-primary-color` | Main color of the warning messages | `#FF7043`
-   * `--warning-contrast-color` | Contrast color for the warning color | `#fff`
-   * `--error-toast` | Mixin applied to the error toast | `{}`
-   * `--project-details-fab-background-color` | Color of the fab button in the
-   * details panel | `--primary-color`
+   * `--project-details-fab-background-color` | Color of the fab button in the details panel | `--primary-color`
    * `--empty-info` | Theme mixin, applied to the "empty info" message | `{}`
    * `--project-details-description-empty` | Mixin applied to the "empty info" message | `{}`
    * `--project-details-description` | Description of the project | `{}`
    * `--project-details-description-container` Container of the description of the project | `{}`
-   * `project-details-header` | Mixin applied to the header section | `{}`
-   * `project-details-editor` | Mixin applied to the project editor | `{}`
+   * `--project-details-header` | Mixin applied to the header section | `{}`
+   * `--project-details-editor` | Mixin applied to the project editor | `{}`
+   * `--project-details-bottom-sheet` | Mixin apllied to the `<bottom-sheet>` elements | `{}`
+   * `--context-menu-item-color` | Color of the dropdown menu items | ``
+   * `--context-menu-item-background-color` | Background olor of the dropdown menu items | ``
+   * `--context-menu-item-color-hover` | Color of the dropdown menu items when hovering | ``
+   * `--context-menu-item-background-color-hover` | Background olor of the dropdown menu items when hovering | ``
+   * `--bottom-sheet-width` | Width of the `<bottom-sheet>` element | `100%`
+   * `--bottom-sheet-max-width` | Max width of the `<bottom-sheet>` element | `700px`
+   * `--project-details-bottom-sheet-right` | Right position of the `<bottom-sheet>` element | `40px`
+   * `--project-details-bottom-sheet-left` | Left position of the `<bottom-sheet>` element | `auto`
+   * `--warning-dialog-button-color` | Button color of the warning dialog | `#fff`
+   * `--warning-dialog-button-background-color` | Button background color of the warning dialog | `transparent`
+   * `--warning-primary-color` | Main color of the warning messages | `#FF7043`
+   * `--warning-contrast-color` | Contrast color for the warning color | `#fff`
+   * `--error-toast` | Mixin applied to the error toast | `{}`
    */
   class ProjectDetails extends Polymer.Element {
 
@@ -116,9 +125,20 @@ declare namespace UiElements {
      * List of requests that has been recently removed
      */
     _latestDeleted: any[]|null|undefined;
+    editorOpened: boolean|null|undefined;
+    detailsOpened: boolean|null|undefined;
     connectedCallback(): void;
     disconnectedCallback(): void;
     _projectChanged(projectId: any): void;
+    _setupRequests(project: any): void;
+
+    /**
+     * Sorts requests list by `projectOrder` property
+     */
+    _legacySort(a: object|null, b: object|null): Number|null;
+    _requestDeletedHandler(e: any): void;
+    _isProjectRequest(request: any): any;
+    _requestChangedHandler(e: any): void;
     _cancelRequestLoading(loadingRequests: any, hasRequests: any): void;
 
     /**
@@ -140,18 +160,19 @@ declare namespace UiElements {
      * Performs a delete action of request items.
      *
      * @param deleted List of deleted items.
-     * @returns [description]
+     * @param opts If `skipRevert` is true it ignores "revert" logic
      */
-    _delete(deleted: Array<object|null>|null): any;
+    _delete(deleted: Array<object|null>|null, opts: object|null): Promise<any>|null;
 
     /**
      * Restores removed requests.
      * It does nothing if `_latestDeleted` is not set or empty.
      */
-    revertDeleted(): any;
+    revertDeleted(): Promise<any>|null;
+    _closeMainMenu(): void;
 
     /**
-     * Handles the export event. Fires `export-project` custom event
+     * Handles the export event. Fires `export-data` custom event
      */
     _onExport(e: any): void;
 
@@ -162,16 +183,16 @@ declare namespace UiElements {
     _onExportAllDrive(): void;
 
     /**
-     * Dispatches the `export-project` event with relevant data.
+     * Dispatches the `export-data` event with relevant data.
      *
      * @param requests List of request to export with the project.
      */
-    _exportItems(requests: any[]|null, destination: any): void;
+    _exportItems(requests: any[]|null, destination: String|null): void;
 
     /**
      * Handler for the list reorder event. Updates items order in the datastore.
      */
-    _onReorder(): void;
+    _persistReorder(): void;
 
     /**
      * Updates requests in bulk opeartion.
@@ -207,66 +228,70 @@ declare namespace UiElements {
     _saveEdit(e: any): void;
 
     /**
+     * Dispatches `project-object-changed` event to inform model to update
+     * the data.
+     *
+     * @param project Data to store.
+     */
+    _dispatchProjectUpdate(project: object|null): Promise<any>|null;
+
+    /**
      * handler for the `project-object-changed`. Updates project data if needed.
      */
-    _projectDataChanged(e: any): void;
+    _projectDataChanged(e: CustomEvent|null): void;
 
     /**
      * Handler for the `project-object-deleted` event.
      */
-    _projectDeleteHandler(e: any): void;
+    _projectDeleteHandler(e: CustomEvent|null): void;
 
     /**
      * Deletes the project when there's no requests associated with it.
      * This function doesn't ask for confirmation.
      */
-    _deleteEmpty(): any;
+    _deleteEmpty(): Promise<any>|null;
 
     /**
-     * Called with "delete" menu option.
+     * Opens the warning dialog to delete the project.
      */
     _deleteProject(): void;
 
     /**
-     * Called when the "delete dialog" closes
+     * Called when the delete warning dialog closes.
+     *
+     * The function removes requests that exclusively belongs to this project
+     * and updates the requests that contains this project and some other.
+     * Finally it removes the project.
+     * Each of the actions is separate action based on events API.
      */
-    _deleteDialogResult(e: any): any;
-    _notifyDeleteProject(): any;
+    _deleteDialogResult(e: CustomEvent|null): Promise<any>|null;
+
+    /**
+     * Dispatches `project-object-deleted` event to remove the project.
+     */
+    _notifyDeleteProject(): Promise<any>|null;
 
     /**
      * Opens the request details applet with the request.
      */
-    _onDetails(e: any): void;
+    _onDetails(e: CustomEvent|null): void;
 
     /**
      * Fires `navigate` event for currently loaded in the details request.
      */
-    _loadRequestDetails(): void;
+    _openRequestDetails(): void;
 
     /**
      * Opens request details editor in place of the request details applet.
      */
     _editRequestDetails(): void;
-    _resizeSheetContent(): void;
-    _resizeEditorSheetContent(): void;
+    _resizeSheetContent(e: any): void;
     _cancelRequestEdit(): void;
 
     /**
-     * Prepares a detail object for the `save-request-data` event.
-     *
-     * @param opts Map of saving request options returned from save
-     *                      panel / dialog
-     * @param request The request object to update.
-     * @returns Event's detail object.
+     * Closes editor when saving request
      */
-    _prepareSaveRequestEvent(opts: object|null, request: object|null): object|null;
-
-    /**
-     * Dispatches the event to save request data in the data store.
-     *
-     * @param e The `save-request` event dispatched from the editor.
-     */
-    _saveRequestEdit(e: CustomEvent|null): any;
+    _saveRequestEdit(): void;
   }
 }
 
