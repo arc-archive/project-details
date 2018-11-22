@@ -200,7 +200,7 @@ the License.
     </bottom-sheet>
 
     <bottom-sheet opened="{{editorOpened}}" on-iron-overlay-opened="_resizeSheetContent">
-      <saved-request-editor id="requestEditor" on-cancel-request-edit="_cancelRequestEdit" on-save-request="_saveRequestEdit"></saved-request-detail>
+      <saved-request-editor id="requestEditor" no-auto-projects="[[noAutoProjects]]" on-cancel-request-edit="_cancelRequestEdit" on-save-request="_saveRequestEdit"></saved-request-detail>
     </bottom-sheet>
 
     <bottom-sheet opened="{{edit}}" on-iron-overlay-opened="_resizeSheetContent">
@@ -330,8 +330,19 @@ the License.
         },
         // List of requests that has been recently removed
         _latestDeleted: Array,
+        /**
+         * When set the project metadata editor is opened.
+         */
         editorOpened: Boolean,
-        detailsOpened: Boolean
+        /**
+         * When set the project metadata preview is opened.
+         */
+        detailsOpened: Boolean,
+        /**
+         * When set the element won't request projects list when attached to the dom.
+         * This is passed to the request editor.
+         */
+        noAutoProjects: Boolean
       };
     }
 
@@ -764,8 +775,8 @@ the License.
         this.edit = false;
         return;
       }
-      this._dispatchProjectUpdate(changed);
       this.edit = false;
+      return this._dispatchProjectUpdate(project);
     }
     /**
      * Dispatches `project-object-changed` event to inform model to update

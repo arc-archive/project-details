@@ -23,64 +23,73 @@
       </template>
     </test-fixture>
 
+    <test-fixture id="NoAuto">
+      <template>
+        <project-details no-auto-projects></project-details>
+      </template>
+    </test-fixture>
+
     <script>
     /* global DataGenerator, DataHelper */
-    suite('basic', function() {
-      let element;
-      setup(function() {
-        element = fixture('Basic');
-      });
 
-      test('requests are not set', function() {
-        assert.isUndefined(element.requests);
-      });
+    suite('Initialization', () => {
+      suite('basic', function() {
+        let element;
+        setup(function() {
+          element = fixture('NoAuto');
+        });
 
-      test('project is not set', function() {
-        assert.isUndefined(element.project);
-      });
+        test('requests are not set', function() {
+          assert.isUndefined(element.requests);
+        });
 
-      test('edit is false by default', function() {
-        assert.isFalse(element.edit);
-      });
+        test('project is not set', function() {
+          assert.isUndefined(element.project);
+        });
 
-      test('hasRequests is false by default', function() {
-        assert.isFalse(element.hasRequests);
-      });
-    });
+        test('edit is false by default', function() {
+          assert.isFalse(element.edit);
+        });
 
-    suite('basic - after initialization', function() {
-      let projectId;
-      let requests;
-      suiteSetup(function() {
-        return DataHelper.generateData()
-        .then((result) => {
-          projectId = result.projectId;
-          requests = result.requests;
+        test('hasRequests is false by default', function() {
+          assert.isFalse(element.hasRequests);
         });
       });
 
-      suiteTeardown(function() {
-        return DataGenerator.destroySavedRequestData();
-      });
+      suite('basic - after initialization', function() {
+        let projectId;
+        let requests;
+        suiteSetup(function() {
+          return DataHelper.generateData()
+          .then((result) => {
+            projectId = result.projectId;
+            requests = result.requests;
+          });
+        });
 
-      let element;
-      setup(function() {
-        element = fixture('Basic');
-        element.projectId = projectId;
-        return DataHelper.doneWhenLoaded(element);
-      });
+        suiteTeardown(function() {
+          return DataGenerator.destroySavedRequestData();
+        });
 
-      test('Requests are set', function() {
-        assert.typeOf(element.requests, 'array');
-        assert.lengthOf(element.requests, requests.length);
-      });
+        let element;
+        setup(function() {
+          element = fixture('Basic');
+          element.projectId = projectId;
+          return DataHelper.doneWhenLoaded(element);
+        });
 
-      test('Project is set', function() {
-        assert.typeOf(element.project, 'object');
-      });
+        test('Requests are set', function() {
+          assert.typeOf(element.requests, 'array');
+          assert.lengthOf(element.requests, requests.length);
+        });
 
-      test('hasRequests is computed', function() {
-        assert.isTrue(element.hasRequests);
+        test('Project is set', function() {
+          assert.typeOf(element.project, 'object');
+        });
+
+        test('hasRequests is computed', function() {
+          assert.isTrue(element.hasRequests);
+        });
       });
     });
     </script>

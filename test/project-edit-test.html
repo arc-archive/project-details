@@ -69,34 +69,53 @@
           projectUpdateDetail.detail.name = updateName + '-' + String(counter);
           projectUpdateDetail.detail.description = updateDescription + '-' + String(counter);
           counter++;
-          element._saveEdit(projectUpdateDetail);
-          done();
+          element._saveEdit(projectUpdateDetail)
+          .then(() => done())
+          .catch((e) => done(e));
         });
       }
 
-      test('Updates name and description in the model', function() {
-        updateProject(() => {
+      test('Updates name and description in the model', function(done) {
+        updateProject((err) => {
+          if (err) {
+            done(err);
+            return;
+          }
           assert.equal(element.project.name, projectUpdateDetail.detail.name,
             'Name is updated');
           assert.equal(element.project.description, projectUpdateDetail.detail.description,
             'Description is updated');
+          done();
         });
       });
 
-      test('Closes the editor', function() {
-        updateProject(() => {
+      test('Closes the editor', function(done) {
+        updateProject((err) => {
+          if (err) {
+            done(err);
+            return;
+          }
           assert.isFalse(element.edit);
+          done();
         });
       });
 
       test('Dispatches project-object-changed event', function(done) {
+        let called;
         element.addEventListener('project-object-changed', function(e) {
           if (!e.cancelable) {
             return;
           }
+          called = true;
+        });
+        updateProject((err) => {
+          if (err) {
+            done(err);
+            return;
+          }
+          assert.isTrue(called);
           done();
         });
-        updateProject(() => {});
       });
     });
     </script>
