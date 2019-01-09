@@ -1,28 +1,21 @@
 <!doctype html>
-<!--
-@license
-Copyright (c) 2015 The Polymer Project Authors. All rights reserved.
-This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
-The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
-The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
-Code distributed by Google as part of the polymer project is also
-subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
--->
 <html>
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, minimum-scale=1.0, initial-scale=1.0, user-scalable=yes">
-
-    <script src="../../webcomponentsjs/webcomponents-lite.js"></script>
+    <script src="../../webcomponentsjs/webcomponents-loader.js"></script>
     <script src="../../web-component-tester/browser.js"></script>
-    <script src="../../iron-test-helpers/test-helpers.js"></script>
-    <script src="../../iron-test-helpers/mock-interactions.js"></script>
-    <script src="data-generator.js"></script>
     <script src="../../chance/dist/chance.min.js"></script>
+    <script src="data-helper.js"></script>
+    <link rel="import" href="../../arc-data-generator/arc-data-generator.html">
+    <link rel="import" href="../../arc-models/request-model.html">
+    <link rel="import" href="../../arc-models/project-model.html">
+    <link rel="import" href="../../app-pouchdb/pouchdb.html">
     <link rel="import" href="../project-details.html">
   </head>
   <body>
-
+    <request-model></request-model>
+    <project-model></project-model>
     <test-fixture id="basic">
       <template>
         <project-details></project-details>
@@ -30,54 +23,30 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     </test-fixture>
 
     <script>
-    /* global DataGenerator, fixture, assert, sinon */
+    /* global DataGenerator, DataHelper */
     suite('project delete', function() {
-      var projectId;
-      var element;
-      var loaded = [false, false];
-      function doneWhenLoaded(element, done) {
-        function checkDone() {
-          if (loaded[0] && loaded[1]) {
-            done();
-          }
-        }
-        var c1 = function(e) {
-          if (e.detail.value === false) {
-            element.removeEventListener('loading-project-changed', c1);
-            loaded[0] = true;
-            checkDone();
-          }
-        };
-        var c2 = function(e) {
-          if (e.detail.value === false) {
-            element.removeEventListener('loading-requests-changed', c2);
-            loaded[1] = true;
-            checkDone();
-          }
-        };
-        element.addEventListener('loading-project-changed', c1);
-        element.addEventListener('loading-requests-changed', c2);
-      }
-      setup(function(done) {
-        DataGenerator.generateData(10)
-        .then(result => {
-          projectId = result;
+      let projectId;
+      let element;
+
+      setup(function() {
+        return DataHelper.generateData()
+        .then((result) => {
+          projectId = result.projectId;
           element = fixture('basic');
           element.projectId = projectId;
-          loaded = [false, false];
-          doneWhenLoaded(element, done);
+          return DataHelper.doneWhenLoaded(element);
         });
       });
 
       teardown(function() {
-        return DataGenerator.destroyData();
+        return DataGenerator.destroySavedRequestData();
       });
 
       test('Deletes empty project without confirmation', function() {
-        var spy = sinon.spy();
+        const spy = sinon.spy();
         element.addEventListener('navigate', spy);
-        var eventData;
-        var callback = function(e) {
+        let eventData;
+        const callback = function(e) {
           if (!e.cancelable) {
             return;
           }
@@ -92,20 +61,20 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       });
 
       test('_deleteProject() opens the warning window', function() {
-        var spy1 = sinon.spy();
-        var spy2 = sinon.spy();
+        const spy1 = sinon.spy();
+        const spy2 = sinon.spy();
         element.addEventListener('project-object-deleted', spy1);
         element.addEventListener('request-objects-deleted', spy2);
         element._deleteProject();
-        var node = element.$$('paper-dialog');
+        const node = element.shadowRoot.querySelector('paper-dialog');
         assert.isTrue(node.opened, 'warning dialog is opened');
         assert.isFalse(spy1.called, 'delete project event wasn\'t fired');
         assert.isFalse(spy1.called, 'delete requests event wasn\'t fired');
       });
 
       test('Deletes project and the requests', function() {
-        var spy1 = sinon.spy();
-        var spy2 = sinon.spy();
+        const spy1 = sinon.spy();
+        const spy2 = sinon.spy();
         element.addEventListener('project-object-deleted', spy1);
         element.addEventListener('request-objects-deleted', spy2);
         return element._deleteDialogResult({
@@ -115,7 +84,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           }
         })
         .then(() => {
-          assert.equal(spy1.callCount, 2, 'Project delete flow is OK');
+          assert.equal(spy1.callCount, 1, 'Project delete flow is OK');
           assert.equal(spy2.callCount, 1, 'Request delete flow is OK');
         });
       });
