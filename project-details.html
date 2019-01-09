@@ -376,6 +376,42 @@ the License.
       window.removeEventListener('request-object-changed', this._requestChangedHandler);
     }
 
+    _navigate(detail) {
+      const e = new CustomEvent('navigate', {
+        bubbles: true,
+        composed: true,
+        detail
+      });
+      this.dispatchEvent(e);
+      return e;
+    }
+
+    _dispatchProjectRead(id) {
+      const e = new CustomEvent('project-read', {
+        bubbles: true,
+        cancelable: true,
+        composed: true,
+        detail: {
+          id
+        }
+      });
+      this.dispatchEvent(e);
+      return e;
+    }
+
+    _dispatchRequestRead(id) {
+      const e = new CustomEvent('request-project-list', {
+        bubbles: true,
+        cancelable: true,
+        composed: true,
+        detail: {
+          id
+        }
+      });
+      this.dispatchEvent(e);
+      return e;
+    }
+
     _projectChanged(projectId) {
       if (this.editorOpened) {
         this.editorOpened = false;
@@ -389,21 +425,13 @@ the License.
       this._setLoadingProject(true);
       this._setLoadingRequests(true);
 
-      const e = new CustomEvent('project-read', {
-        bubbles: true,
-        cancelable: true,
-        composed: true,
-        detail: {
-          id: projectId
-        }
-      });
-      this.dispatchEvent(e);
+      const e = this._dispatchProjectRead(projectId);
       if (!e.defaultPrevented) {
         console.warn('project-read event not handled!');
         this._setLoadingProject(false);
-        return;
+        return Promise.reject(new Error('no model'));
       }
-      e.detail.result
+      return e.detail.result
       .then((project) => {
         this.set('project', project);
         this._setupRequests(project);
@@ -420,15 +448,7 @@ the License.
     _setupRequests(project) {
       const projectHasRequests = !!project.requests;
       this._setLoadingRequests(true);
-      const e = new CustomEvent('request-project-list', {
-        bubbles: true,
-        cancelable: true,
-        composed: true,
-        detail: {
-          id: project._id
-        }
-      });
-      this.dispatchEvent(e);
+      const e = this._dispatchRequestRead(project._id);
       if (!e.defaultPrevented) {
         console.warn('request-project-list event not handled!');
         this._setLoadingProject(false);
@@ -539,15 +559,11 @@ the License.
     // Handles the `list-item-open` event to open a request.
     _onOpen(e) {
       const request = e.detail.item;
-      this.dispatchEvent(new CustomEvent('navigate', {
-        bubbles: true,
-        composed: true,
-        detail: {
-          base: 'request',
-          type: 'saved',
-          id: request._id
-        }
-      }));
+      this._navigate({
+        base: 'request',
+        type: 'saved',
+        id: request._id
+      });
     }
     // Handles items delete event.
     _onDelete(e) {
@@ -631,16 +647,7 @@ the License.
       if (!deleted || !deleted.length) {
         return Promise.resolve();
       }
-      const e = new CustomEvent('request-objects-undeleted', {
-        bubbles: true,
-        cancelable: true,
-        composed: true,
-        detail: {
-          items: deleted,
-          type: 'saved'
-        }
-      });
-      this.dispatchEvent(e);
+      const e = this._dispatchUndelete(deleted);
       if (!e.defaultPrevented) {
         this.$.noModel.opened = true;
         return Promise.reject(new Error('Unable to revert. No model.'));
@@ -650,6 +657,26 @@ the License.
         this.$.revertError.opened = true;
       });
     }
+    /**
+     * Dispatches `request-objects-undeleted` event.
+     * @param {Array<Object>} items List of deleted requests. The list
+     * contains objects with `_id` and `_rev` properties.
+     * @return {CustomEvent}
+     */
+    _dispatchUndelete(items) {
+      const e = new CustomEvent('request-objects-undeleted', {
+        bubbles: true,
+        composed: true,
+        cancelable: true,
+        detail: {
+          type: 'saved',
+          items
+        }
+      });
+      this.dispatchEvent(e);
+      return e;
+    }
+
     _closeMainMenu() {
       this.$.contextMenu.selected = -1;
       this.$.contextMenu.parentElement.opened = false;
@@ -677,23 +704,7 @@ the License.
      */
     _exportItems(requests, destination) {
       destination = destination || 'file';
-      const project = this.project;
-      const file = project.name + '.json';
-      const e = new CustomEvent('export-data', {
-        bubbles: true,
-        cancelable: true,
-        composed: true,
-        detail: {
-          file,
-          destination,
-          type: 'project',
-          data: {
-            project,
-            requests
-          }
-        }
-      });
-      this.dispatchEvent(e);
+      const e = this._dispatchExportData(destination, requests);
       if (!e.defaultPrevented) {
         this.$.noExport.opened = true;
         return;
@@ -704,6 +715,33 @@ the License.
           this.$.driveSaved.opened = true;
         }
       });
+    }
+    /**
+     * Dispatches `export-data` event and returns it.
+     * @param {String} destination A place where export the data (file, drive)
+     * @param {Array<Object>|Boolean} requests
+     * @return {CustomEvent}
+     */
+    _dispatchExportData(destination, requests) {
+      const project = this.project;
+      const file = project.name + '.json';
+      const e = new CustomEvent('export-data', {
+        cancelable: true,
+        composed: true,
+        bubbles: true,
+        detail: {
+          type: 'project',
+          destination,
+          file,
+          kind: 'ARC#ProjectExport',
+          data: {
+            project,
+            requests
+          }
+        }
+      });
+      this.dispatchEvent(e);
+      return e;
     }
     /**
      * Handler for the list reorder event. Updates items order in the datastore.
@@ -839,13 +877,9 @@ the License.
     _deleteEmpty() {
       return this._notifyDeleteProject()
       .then(() => {
-        this.dispatchEvent(new CustomEvent('navigate', {
-          bubbles: true,
-          composed: true,
-          detail: {
-            base: 'default'
-          }
-        }));
+        this._navigate({
+          base: 'default'
+        });
       });
     }
     /**
@@ -935,16 +969,11 @@ the License.
      * Fires `navigate` event for currently loaded in the details request.
      */
     _openRequestDetails() {
-      this.dispatchEvent(new CustomEvent('navigate', {
-        bubbles: true,
-        composed: true,
-        cancelable: true,
-        detail: {
-          base: 'request',
-          type: 'saved',
-          id: this.$.requestDetails.request._id
-        }
-      }));
+      this._navigate({
+        base: 'request',
+        type: 'saved',
+        id: this.$.requestDetails.request._id
+      });
       this.detailsOpened = false;
     }
 

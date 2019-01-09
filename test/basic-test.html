@@ -28,10 +28,10 @@
         <project-details no-auto-projects></project-details>
       </template>
     </test-fixture>
+    </test-fixture>
 
     <script>
-    /* global DataGenerator, DataHelper */
-
+    /* global DataGenerator, chance */
     suite('Initialization', () => {
       suite('basic', function() {
         let element;
@@ -57,30 +57,37 @@
       });
 
       suite('basic - after initialization', function() {
-        let projectId;
-        let requests;
-        suiteSetup(function() {
-          return DataHelper.generateData()
-          .then((result) => {
-            projectId = result.projectId;
-            requests = result.requests;
+        let project;
+        suiteSetup(() => {
+          return DataGenerator.insertSavedRequestData()
+          .then((data) => {
+            project = data.projects.find((item) => item.requests && item.requests.length);
+            if (!project) {
+              throw new Error('Test initialization failed. Projects were not generated.');
+            }
           });
         });
 
-        suiteTeardown(function() {
+        suiteTeardown(() => {
           return DataGenerator.destroySavedRequestData();
         });
 
         let element;
-        setup(function() {
+        setup((done) => {
           element = fixture('Basic');
-          element.projectId = projectId;
-          return DataHelper.doneWhenLoaded(element);
+          element.addEventListener('loading-requests-changed', function f(e) {
+            if (e.detail.value) {
+              return;
+            }
+            element.removeEventListener('loading-requests-changed', f);
+            flush(() => done());
+          });
+          element.projectId = project._id;
         });
 
         test('Requests are set', function() {
           assert.typeOf(element.requests, 'array');
-          assert.lengthOf(element.requests, requests.length);
+          assert.lengthOf(element.requests, project.requests.length);
         });
 
         test('Project is set', function() {
@@ -92,6 +99,311 @@
         });
       });
     });
+
+    suite('_navigate()', () => {
+      let element;
+      setup(function() {
+        element = fixture('NoAuto');
+      });
+
+      test('Dispatches navigate event', () => {
+        const spy = sinon.spy();
+        element.addEventListener('navigate', spy);
+        element._navigate('test');
+        assert.isTrue(spy.called);
+      });
+
+      test('Returns the event', () => {
+        const e = element._navigate('test');
+        assert.typeOf(e, 'customevent');
+      });
+
+      test('Event bubbles', () => {
+        const e = element._navigate('test');
+        assert.isTrue(e.bubbles);
+      });
+
+      test('Event is composed (not for Edge...)', () => {
+        const e = element._navigate('test');
+        if (typeof e.composed !== 'undefined') {
+          assert.isTrue(e.composed);
+        }
+      });
+
+      test('Detail is set', () => {
+        const e = element._navigate('test');
+        if (typeof e.composed !== 'undefined') {
+          assert.equal(e.detail, 'test');
+        }
+      });
+    });
+
+    suite('_dispatchProjectRead()', () => {
+      let element;
+      setup(function() {
+        element = fixture('NoAuto');
+      });
+
+      test('Dispatches project-read event', () => {
+        const spy = sinon.spy();
+        element.addEventListener('project-read', spy);
+        element._dispatchProjectRead('test');
+        assert.isTrue(spy.called);
+      });
+
+      test('Returns the event', () => {
+        const e = element._dispatchProjectRead('test');
+        assert.typeOf(e, 'customevent');
+      });
+
+      test('Event bubbles', () => {
+        const e = element._dispatchProjectRead('test');
+        assert.isTrue(e.bubbles);
+      });
+
+      test('Event is composed (not for Edge...)', () => {
+        const e = element._dispatchProjectRead('test');
+        if (typeof e.composed !== 'undefined') {
+          assert.isTrue(e.composed);
+        }
+      });
+
+      test('Event is cancelable', () => {
+        const e = element._dispatchProjectRead('test');
+        assert.isTrue(e.cancelable);
+      });
+
+      test('Detail is set', () => {
+        const e = element._dispatchProjectRead('test');
+        if (typeof e.composed !== 'undefined') {
+          assert.equal(e.detail.id, 'test');
+        }
+      });
+    });
+
+    suite('_dispatchRequestRead()', () => {
+      let element;
+      setup(function() {
+        element = fixture('NoAuto');
+      });
+
+      test('Dispatches request-project-list event', () => {
+        const spy = sinon.spy();
+        element.addEventListener('request-project-list', spy);
+        element._dispatchRequestRead('test');
+        assert.isTrue(spy.called);
+      });
+
+      test('Returns the event', () => {
+        const e = element._dispatchRequestRead('test');
+        assert.typeOf(e, 'customevent');
+      });
+
+      test('Event bubbles', () => {
+        const e = element._dispatchRequestRead('test');
+        assert.isTrue(e.bubbles);
+      });
+
+      test('Event is composed (not for Edge...)', () => {
+        const e = element._dispatchRequestRead('test');
+        if (typeof e.composed !== 'undefined') {
+          assert.isTrue(e.composed);
+        }
+      });
+
+      test('Event is cancelable', () => {
+        const e = element._dispatchRequestRead('test');
+        assert.isTrue(e.cancelable);
+      });
+
+      test('Detail is set', () => {
+        const e = element._dispatchRequestRead('test');
+        if (typeof e.composed !== 'undefined') {
+          assert.equal(e.detail.id, 'test');
+        }
+      });
+    });
+
+    suite('_dispatchUndelete()', () => {
+      let element;
+      let list;
+      setup(() => {
+        element = fixture('Basic');
+        list = [];
+        for (let i = 0; i < 5; i++) {
+          list[i] = {
+            _id: chance.guid({version: 5}),
+            _rev: chance.guid({version: 5})
+          };
+        }
+      });
+
+      test('Dispatches request-objects-undeleted event', () => {
+        const spy = sinon.spy();
+        element.addEventListener('request-objects-undeleted', spy);
+        element._dispatchUndelete(list);
+        assert.isTrue(spy.called);
+      });
+
+      test('The event bubbles', () => {
+        let data;
+        element.addEventListener('request-objects-undeleted', function f(e) {
+          element.removeEventListener('request-objects-undeleted', f);
+          data = e;
+          e.stopPropagation();
+          e.detail.result = Promise.resolve();
+        });
+        element._dispatchUndelete(list);
+        assert.isTrue(data.bubbles);
+      });
+
+      test('The event is composed', () => {
+        let data;
+        element.addEventListener('request-objects-undeleted', function f(e) {
+          element.removeEventListener('request-objects-undeleted', f);
+          data = e;
+          e.stopPropagation();
+          e.detail.result = Promise.resolve();
+        });
+        element._dispatchUndelete(list);
+        if (typeof data.composed !== 'undefined') {
+          assert.isTrue(data.composed);
+        }
+      });
+
+      test('The event is cancelable', () => {
+        let data;
+        element.addEventListener('request-objects-undeleted', function f(e) {
+          element.removeEventListener('request-objects-undeleted', f);
+          data = e;
+          e.stopPropagation();
+          e.detail.result = Promise.resolve();
+        });
+        element._dispatchUndelete(list);
+        assert.isTrue(data.cancelable);
+      });
+
+      test('The event has "detail.type"', () => {
+        let data;
+        element.addEventListener('request-objects-undeleted', function f(e) {
+          element.removeEventListener('request-objects-undeleted', f);
+          data = e.detail;
+          e.stopPropagation();
+          e.detail.result = Promise.resolve();
+        });
+        element._dispatchUndelete(list);
+        assert.equal(data.type, 'saved');
+      });
+
+      test('The event has "detail.items"', () => {
+        let data;
+        element.addEventListener('request-objects-undeleted', function f(e) {
+          element.removeEventListener('request-objects-undeleted', f);
+          data = e.detail;
+          e.stopPropagation();
+          e.detail.result = Promise.resolve();
+        });
+        element._dispatchUndelete(list);
+        assert.typeOf(data.items, 'array');
+        assert.lengthOf(data.items, 5);
+      });
+
+      test('The "detail.items" has _id and _rev', () => {
+        let data;
+        element.addEventListener('request-objects-undeleted', function f(e) {
+          element.removeEventListener('request-objects-undeleted', f);
+          data = e.detail;
+          e.stopPropagation();
+          e.detail.result = Promise.resolve();
+        });
+        element._dispatchUndelete(list);
+        assert.typeOf(data.items[0]._id, 'string');
+        assert.typeOf(data.items[0]._rev, 'string');
+      });
+    });
+
+    // suite('revertDeleted()', () => {
+    //   teardown(() => {
+    //     return DataGenerator.destroySavedRequestData();
+    //   });
+    //
+    //   let element;
+    //   setup((done) => {
+    //     DataGenerator.insertSavedRequestData({
+    //       requestsSize: 5
+    //     })
+    //     .then(() => {
+    //       element = fixture('Basic');
+    //       element.addEventListener('loading-requests-changed', function f(e) {
+    //         if (e.detail.value) {
+    //           return;
+    //         }
+    //         element.removeEventListener('loading-requests-changed', f);
+    //         flush(() => done());
+    //       });
+    //     });
+    //   });
+    //
+    //   test('Do nothing when delete was not called before', function() {
+    //     return element.revertDeleted(); // no error is thrown
+    //   });
+    //
+    //   test('Closes delete confirmation toast', function() {
+    //     return element._delete(element.requests.slice(0, 2))
+    //     .then(() => {
+    //       const promise = element.revertDeleted();
+    //       assert.isFalse(element.$.deleteToast.opened);
+    //       return promise;
+    //     });
+    //   });
+    //
+    //   test('Dispatches request-objects-undeleted event', function() {
+    //     const spy = sinon.spy();
+    //     element.addEventListener('request-objects-undeleted', spy);
+    //     return element._delete(element.requests.slice(0, 2))
+    //     .then(() => {
+    //       const promise = element.revertDeleted();
+    //       assert.isTrue(spy.calledOnce);
+    //       return promise;
+    //     });
+    //   });
+    //
+    //   test('Undeleted restores items to the list', function() {
+    //     const deleted = [element.requests[2], element.requests[3]];
+    //     const sizeBefore = element.requests.length;
+    //     return element._delete(deleted)
+    //     .then(() => {
+    //       assert.notEqual(element.requests.length, sizeBefore);
+    //       return element.revertDeleted();
+    //     })
+    //     .then(() => {
+    //       assert.equal(element.requests.length, sizeBefore);
+    //     });
+    //   });
+    //
+    //   test('Opens model error toast if the event is not handled', function() {
+    //     element._latestDeleted = [{}];
+    //     element.addEventListener('request-objects-undeleted', function f(e) {
+    //       element.removeEventListener('request-objects-undeleted', f);
+    //       e.stopImmediatePropagation();
+    //     });
+    //     return element.revertDeleted()
+    //     .catch(() => {
+    //       const toast = element.shadowRoot.querySelector('#noModel');
+    //       assert.isTrue(toast.opened);
+    //     });
+    //   });
+    //
+    //   test('Opens revert error toast if there\'s an error', function() {
+    //     element._latestDeleted = [{}];
+    //     element._handleError = () => {};
+    //     return element.revertDeleted()
+    //     .catch(() => {
+    //       const toast = element.shadowRoot.querySelector('#revertError');
+    //       assert.isTrue(toast.opened);
+    //     });
+    //   });
+    // });
     </script>
 
   </body>

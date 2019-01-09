@@ -72,20 +72,6 @@
         });
       });
 
-      test('Navigate event is cancelable', function(done) {
-        element._onDetails(ev);
-        element.addEventListener('iron-overlay-opened', function f() {
-          element.removeEventListener('iron-overlay-opened', f);
-          element.addEventListener('navigate', function f(e) {
-            element.removeEventListener('navigate', f);
-            assert.isTrue(e.cancelable);
-            done();
-          });
-          const node = element.shadowRoot.querySelector('[data-action="load-request-detail"]');
-          node.click();
-        });
-      });
-
       test('Navigate event contains required data', function(done) {
         element._onDetails(ev);
         element.addEventListener('iron-overlay-opened', function f() {
