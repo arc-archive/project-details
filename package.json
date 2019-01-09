@@ -1,6 +1,6 @@
 {
-  "name": "project-details",
-  "version": "2.0.0-preview",
+  "name": "@advanced-rest-client/project-details",
+  "version": "2.0.0",
   "license": "Apache-2.0",
   "description": "A project details panel for the Advanced REST Client",
   "devDependencies": {
