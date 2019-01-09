@@ -19,7 +19,7 @@
   },
   "dependencies": {
     "polymer": "Polymer/polymer#^2.0.0",
-    "project-requests-list": "advanced-rest-client/project-requests-list#2.0.0-preview",
+    "project-requests-list": "advanced-rest-client/project-requests-list#^2.0.0",
     "paper-toast": "PolymerElements/paper-toast#^2.0.0",
     "paper-button": "PolymerElements/paper-button#^2.0.0",
     "paper-icon-button": "PolymerElements/paper-icon-button#^2.0.0",
@@ -31,8 +31,8 @@
     "paper-dialog": "PolymerElements/paper-dialog#^2.0.0",
     "bottom-sheet": "advanced-rest-client/bottom-sheet#^2.0.0",
     "paper-fab": "PolymerElements/paper-fab#^2.0.0",
-    "saved-request-editor": "advanced-rest-client/saved-request-editor#2.0.0-preview",
-    "saved-request-detail": "advanced-rest-client/saved-request-detail#2.0.0-preview",
+    "saved-request-editor": "advanced-rest-client/saved-request-editor#^2.0.0",
+    "saved-request-detail": "advanced-rest-client/saved-request-detail#^2.0.0",
     "marked-element": "PolymerElements/marked-element#^2.0.0",
     "markdown-styles": "advanced-rest-client/markdown-styles#^2.0.0"
   },
