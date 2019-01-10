@@ -1,3 +1,17 @@
+<a name="2.0.0"></a>
+# [2.0.0](https://github.com/advanced-rest-client/project-details/compare/0.1.9...2.0.0) (2019-01-10)
+
+
+### Docs
+
+* Adding documentation ([ef807e87132c4ab2e8f6a8e291feeecfced4e931](https://github.com/advanced-rest-client/project-details/commit/ef807e87132c4ab2e8f6a8e291feeecfced4e931))
+
+### Update
+
+* Updated styling API to enable theming ([29032989b301583c01486926e9dbd8345861c07a](https://github.com/advanced-rest-client/project-details/commit/29032989b301583c01486926e9dbd8345861c07a))
+
+
+
 <a name="0.1.11"></a>
 ## [0.1.11](https://github.com/advanced-rest-client/project-details/compare/0.1.9...0.1.11) (2018-05-08)
 
