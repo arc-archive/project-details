@@ -1,26 +1,21 @@
 <!doctype html>
-<!--
-@license
-Copyright (c) 2015 The Polymer Project Authors. All rights reserved.
-This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
-The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
-The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
-Code distributed by Google as part of the polymer project is also
-subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
--->
 <html>
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, minimum-scale=1.0, initial-scale=1.0, user-scalable=yes">
-
-    <script src="../../webcomponentsjs/webcomponents-lite.js"></script>
+    <script src="../../webcomponentsjs/webcomponents-loader.js"></script>
     <script src="../../web-component-tester/browser.js"></script>
-    <script src="../../iron-test-helpers/test-helpers.js"></script>
-    <script src="../../iron-test-helpers/mock-interactions.js"></script>
-    <link rel="import" href="../../arc-demo-helpers/data-generator.html">
+    <script src="../../chance/dist/chance.min.js"></script>
+    <script src="data-helper.js"></script>
+    <link rel="import" href="../../arc-data-generator/arc-data-generator.html">
+    <link rel="import" href="../../arc-models/request-model.html">
+    <link rel="import" href="../../arc-models/project-model.html">
+    <link rel="import" href="../../app-pouchdb/pouchdb.html">
     <link rel="import" href="../project-details.html">
   </head>
   <body>
+    <request-model></request-model>
+    <project-model></project-model>
 
     <test-fixture id="basic">
       <template>
@@ -29,19 +24,17 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     </test-fixture>
 
     <script>
-    /* global fixture, assert, sinon, DataGenerator, MockInteractions */
+    /* global DataGenerator, DataHelper */
     suite('Details panel', function() {
-      var element;
-      var event;
-      var requests;
-      var projects;
+      let element;
+      let ev;
+      let requests;
+      let projectId;
       suiteSetup(function() {
-        return DataGenerator.insertSavedIfNotExists({
-          requestsSize: 10
-        })
-        .then(data => {
-          requests = data.requests;
-          projects = data.projects;
+        return DataHelper.generateData()
+        .then((result) => {
+          projectId = result.projectId;
+          requests = result.requests;
         });
       });
 
@@ -51,66 +44,53 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
       setup(function() {
         element = fixture('basic');
-        element.items = requests;
-        event = {
+        ev = {
           detail: {
             item: requests[0]
           }
         };
+        element.projectId = projectId;
+        return DataHelper.doneWhenLoaded(element);
       });
 
-      test('_onDetails opend the detail panel', function() {
-        element._onDetails(event);
-        assert.isTrue(element.$.requestDetails.request === event.detail.item);
-        assert.isTrue(element.$.requestDetailsContainer.opened);
+      test('_onDetails opens the detail panel', function() {
+        element._onDetails(ev);
+        assert.isTrue(element.$.requestDetails.request === ev.detail.item);
+        assert.isTrue(element.detailsOpened);
       });
 
       test('Fires navigate event for opened request details', function(done) {
-        element._onDetails(event);
+        element._onDetails(ev);
         element.addEventListener('iron-overlay-opened', function f() {
           element.removeEventListener('iron-overlay-opened', f);
-          let spy = sinon.spy();
+          const spy = sinon.spy();
           element.addEventListener('navigate', spy);
-          var node = element.$$('[data-action="load-request-detail"]');
-          MockInteractions.tap(node);
+          const node = element.shadowRoot.querySelector('[data-action="load-request-detail"]');
+          node.click();
           assert.isTrue(spy.calledOnce);
           done();
         });
       });
 
-      test('Navigate event is cancelable', function(done) {
-        element._onDetails(event);
-        element.addEventListener('iron-overlay-opened', function f() {
-          element.removeEventListener('iron-overlay-opened', f);
-          element.addEventListener('navigate', function f(e) {
-            element.removeEventListener('navigate', f);
-            assert.isTrue(e.cancelable);
-            done();
-          });
-          var node = element.$$('[data-action="load-request-detail"]');
-          MockInteractions.tap(node);
-        });
-      });
-
       test('Navigate event contains required data', function(done) {
-        element._onDetails(event);
+        element._onDetails(ev);
         element.addEventListener('iron-overlay-opened', function f() {
           element.removeEventListener('iron-overlay-opened', f);
           element.addEventListener('navigate', function f(e) {
             element.removeEventListener('navigate', f);
             assert.equal(e.detail.base, 'request');
             assert.equal(e.detail.type, 'saved');
-            assert.equal(e.detail.id, event.detail.item._id);
+            assert.equal(e.detail.id, ev.detail.item._id);
             done();
           });
-          var node = element.$$('[data-action="load-request-detail"]');
-          MockInteractions.tap(node);
+          const node = element.shadowRoot.querySelector('[data-action="load-request-detail"]');
+          node.click();
         });
       });
 
       test('_editRequestDetails opens the editor', function(done) {
-        element._onDetails(event);
-        var state = 0;
+        element._onDetails(ev);
+        let state = 0;
         element.addEventListener('iron-overlay-opened', function f() {
           if (state === 0) {
             element._editRequestDetails();
@@ -118,9 +98,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           } else {
             element.removeEventListener('iron-overlay-opened', f);
             assert.isUndefined(element.$.requestDetails.request, 'Request on details panel is cleared');
-            assert.isFalse(element.$.requestDetailsContainer.opened, 'Details panel is closed');
-            assert.isTrue(element.$.requestEditorContainer.opened, 'Editor panel is opened');
-            assert.isTrue(element.$.requestEditor.request === event.detail.item,
+            assert.isFalse(element.detailsOpened, 'Details panel is closed');
+            assert.isTrue(element.editorOpened, 'Editor panel is opened');
+            assert.isTrue(element.$.requestEditor.request === ev.detail.item,
               'Editor contains a request item.');
             done();
           }
@@ -128,8 +108,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       });
 
       test('Cancels the editor', function(done) {
-        element._onDetails(event);
-        var state = 0;
+        element._onDetails(ev);
+        let state = 0;
         element.addEventListener('iron-overlay-opened', function f() {
           if (state === 0) {
             element._editRequestDetails();
@@ -139,29 +119,27 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
             element._cancelRequestEdit();
 
             assert.isUndefined(element.$.requestEditor.request, 'Request on the editor is cleared');
-            assert.isFalse(element.$.requestEditorContainer.opened, 'Editor is closed');
+            assert.isFalse(element.editorOpened, 'Editor is closed');
             done();
           }
         });
       });
 
       test('Fires save-request-data on editor save action', function(done) {
-        element._onDetails(event);
-        var state = 0;
+        element._onDetails(ev);
+        let state = 0;
         element.addEventListener('iron-overlay-opened', function f() {
           if (state === 0) {
             element._editRequestDetails();
             state++;
           } else {
             element.removeEventListener('iron-overlay-opened', f);
-            element.addEventListener('save-request-data', function f2(e) {
+            element.addEventListener('save-request', function f2(e) {
               element.removeEventListener('iron-overlay-opened', f2);
               assert.isTrue(e.cancelable, 'Event is cancelable');
-              assert.typeOf(e.detail.request, 'object', 'Request object is set');
-              assert.typeOf(e.detail.opts, 'object', 'Opts object is set');
               done();
             });
-            let editor = element.$$('saved-request-editor');
+            const editor = element.shadowRoot.querySelector('saved-request-editor');
             editor._save();
           }
         });

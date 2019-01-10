@@ -1,9 +1,10 @@
-/* global chance */
+
 const DataGenerator = {};
 const methods = ['GET', 'PUT', 'POST', 'DELETE', 'PATCH', 'HEAD'];
 const methodsSize = methods.length - 1;
 DataGenerator.createProjectObject = function() {
-  var project = {
+  /* global chance */
+  const project = {
     _id: chance.string({length: 12}),
     name: chance.sentence({words: 2}),
     order: 0,
@@ -13,12 +14,12 @@ DataGenerator.createProjectObject = function() {
 };
 
 DataGenerator.genRequestObject = function(projectData) {
-  var methodIndex = chance.integer({min: 0, max: methodsSize});
-  var id = chance.string({length: 5});
+  const methodIndex = chance.integer({min: 0, max: methodsSize});
+  let id = chance.string({length: 5});
   if (projectData) {
     id += '/' + projectData;
   }
-  var obj = {
+  const obj = {
     _id: id,
     name: chance.sentence({words: 2}),
     method: methods[methodIndex],
@@ -31,26 +32,27 @@ DataGenerator.genRequestObject = function(projectData) {
 
 DataGenerator.generateRequests = function(projectId, size) {
   size = size || 25;
-  var result = [];
-  for (var i = 0; i < size; i++) {
+  const result = [];
+  for (let i = 0; i < size; i++) {
     result.push(DataGenerator.genRequestObject(projectId));
   }
   return result;
 };
 
 DataGenerator.countProjectItems = function(requests, projectId) {
-  var result = requests.filter(item => item.legacyProject &&
+  const result = requests.filter((item) => item.legacyProject &&
     item.legacyProject === projectId);
   return result.length;
 };
 
 DataGenerator.generateData = function(requestsSize) {
-  var project = DataGenerator.createProjectObject();
-  var requests = DataGenerator.generateRequests(project._id, requestsSize);
-  var savedDb = new PouchDB('saved-requests');
-  var projectsDb = new PouchDB('legacy-projects');
+  const project = DataGenerator.createProjectObject();
+  const requests = DataGenerator.generateRequests(project._id, requestsSize);
+  /* global PouchDB */
+  const savedDb = new PouchDB('saved-requests');
+  const projectsDb = new PouchDB('legacy-projects');
   return projectsDb.put(project)
-  .then(result => {
+  .then((result) => {
     if (!result.ok) {
       throw new Error('Cannot insert project into the database');
     }
@@ -60,7 +62,7 @@ DataGenerator.generateData = function(requestsSize) {
 };
 
 DataGenerator.destroyData = function() {
-  var savedDb = new PouchDB('saved-requests');
-  var projectsDb = new PouchDB('legacy-projects');
+  const savedDb = new PouchDB('saved-requests');
+  const projectsDb = new PouchDB('legacy-projects');
   return savedDb.destroy().then(() => projectsDb.destroy());
 };

@@ -1,28 +1,20 @@
 <!doctype html>
-<!--
-@license
-Copyright (c) 2015 The Polymer Project Authors. All rights reserved.
-This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
-The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
-The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
-Code distributed by Google as part of the polymer project is also
-subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
--->
 <html>
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, minimum-scale=1.0, initial-scale=1.0, user-scalable=yes">
-
-    <script src="../../webcomponentsjs/webcomponents-lite.js"></script>
+    <script src="../../webcomponentsjs/webcomponents-loader.js"></script>
     <script src="../../web-component-tester/browser.js"></script>
-    <script src="../../iron-test-helpers/test-helpers.js"></script>
-    <script src="../../iron-test-helpers/mock-interactions.js"></script>
-    <script src="data-generator.js"></script>
     <script src="../../chance/dist/chance.min.js"></script>
+    <script src="data-helper.js"></script>
+    <link rel="import" href="../../arc-data-generator/arc-data-generator.html">
+    <link rel="import" href="../../arc-models/request-model.html">
+    <link rel="import" href="../../arc-models/project-model.html">
     <link rel="import" href="../project-details.html">
   </head>
   <body>
-
+    <request-model></request-model>
+    <project-model></project-model>
     <test-fixture id="basic">
       <template>
         <project-details></project-details>
@@ -30,66 +22,41 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     </test-fixture>
 
     <script>
-    /* global DataGenerator, fixture, assert, sinon */
+    /* global DataGenerator, DataHelper */
     suite('Events handling', function() {
-      var projectId;
+      let projectId;
       suiteSetup(function() {
-        return DataGenerator.generateData(10)
-        .then(result => {
-          projectId = result;
+        return DataHelper.generateData()
+        .then((result) => {
+          projectId = result.projectId;
         });
       });
 
       suiteTeardown(function() {
-        return DataGenerator.destroyData();
+        return DataGenerator.destroySavedRequestData();
       });
 
-      var element;
-      var loaded = [false, false];
-      function doneWhenLoaded(element, done) {
-        function checkDone() {
-          if (loaded[0] && loaded[1]) {
-            done();
-          }
-        }
-        var c1 = function(e) {
-          if (e.detail.value === false) {
-            element.removeEventListener('loading-project-changed', c1);
-            loaded[0] = true;
-            checkDone();
-          }
-        };
-        var c2 = function(e) {
-          if (e.detail.value === false) {
-            element.removeEventListener('loading-requests-changed', c2);
-            loaded[1] = true;
-            checkDone();
-          }
-        };
-        element.addEventListener('loading-project-changed', c1);
-        element.addEventListener('loading-requests-changed', c2);
-      }
-      setup(function(done) {
+      let element;
+      setup(function() {
         element = fixture('basic');
         element.projectId = projectId;
-        loaded = [false, false];
-        doneWhenLoaded(element, done);
+        return DataHelper.doneWhenLoaded(element);
       });
 
       function fire(type, detail, cancelable) {
-        var event = new CustomEvent(type, {
+        const e = new CustomEvent(type, {
           detail: detail,
           cancelable: cancelable === undefined ? true : cancelable,
           bubbles: true
         });
-        document.body.dispatchEvent(event);
-        return event;
+        document.body.dispatchEvent(e);
+        return e;
       }
 
       test('handles project-object-changed custom event', function() {
         const desc = 'test-desc-updated';
         const name = 'test-name-updated';
-        var updated = Object.assign({}, element.project);
+        const updated = Object.assign({}, element.project);
         updated.name = name;
         updated.description = desc;
         fire('project-object-changed', {
@@ -97,21 +64,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         }, false);
         assert.equal(element.project.name, name);
         assert.equal(element.project.description, desc);
-      });
-
-      test('Handles project-object-deleted custom event', function() {
-        var event = new CustomEvent('project-object-deleted', {
-          detail: {
-            id: projectId
-          },
-          bubbles: true,
-          cancelable: false
-        });
-        var spy = sinon.spy();
-        element.addEventListener('navigate', spy);
-        document.body.dispatchEvent(event);
-        assert.isUndefined(element.project, 'project is undefined');
-        assert.isTrue(spy.calledOnce, 'navigate event is fired');
       });
     });
     </script>

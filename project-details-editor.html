@@ -1,6 +1,6 @@
 <!--
 @license
-Copyright 2016 The Advanced REST client authors <arc@mulesoft.com>
+Copyright 2018 The Advanced REST client authors <arc@mulesoft.com>
 Licensed under the Apache License, Version 2.0 (the "License"); you may not
 use this file except in compliance with the License. You may obtain a copy of
 the License at
@@ -11,66 +11,63 @@ WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 License for the specific language governing permissions and limitations under
 the License.
 -->
-<link rel="import" href="../polymer/polymer.html">
+<link rel="import" href="../polymer/polymer-element.html">
 <link rel="import" href="../paper-input/paper-input.html">
 <link rel="import" href="../paper-input/paper-textarea.html">
 <link rel="import" href="../paper-button/paper-button.html">
 <link rel="import" href="../paper-toast/paper-toast.html">
-<!--
-An element to render project details editor.
 
-@group UI Elements
-@element project-details-editor
-@demo demo/index.html
--->
 <dom-module id="project-details-editor">
   <template>
     <style>
     :host {
       display: block;
-      @apply project-details-editor;
+      @apply --arc-font-body1;
+      @apply --project-details-editor;
     }
 
-    .cancel-button {
-      color: var(--primary-color);
+    .actions {
+      @apply --layout-horizontal;
+      @apply --layout-end-justified;
+      margin-top: 20px;
+      @apply --project-details-actions-container;
     }
 
-    .action-button {
-      background-color: var(--primary-color);
-      color: #fff;
+    .actions paper-button {
+      color: var(--project-details-action-button-color, var(--primary-color));
+      background-color: var(--project-details-action-button-background-color);
+      padding-left: 12px;
+      padding-right: 12px;
+      @apply --project-details-action-buttons;
+    }
+
+    .actions paper-button.action-button {
+      @apply --action-button;
     }
     </style>
     <paper-input label="Project name" value="{{name}}"></paper-input>
     <paper-textarea label="Project description" value="{{description}}"></paper-textarea>
 
-    <paper-button class="cancel-button" on-tap="cancel">Cancel</paper-button>
-    <paper-button class="action-button" on-tap="save">Save</paper-button>
+    <div class="actions">
+      <paper-button on-click="cancel">Cancel</paper-button>
+      <paper-button class="action-button" on-click="save">Save</paper-button>
+    </div>
 
     <paper-toast id="missingName" text="Project name cannot be empty."></paper-toast>
   </template>
   <script>
-    Polymer({
-      is: 'project-details-editor',
-      /**
-       * Fired when the user cancelled the action-button.
-       *
-       * This event does not bubbles.
-       *
-       * @event cancel-edit
-       */
-      /**
-       * Fired when the user requested to save the data.
-       * This element does not recognize if any change actually has been made
-       * to the data so parent element may want to check if any data actually
-       * changed.
-       *
-       * This event does not bubbles.
-       *
-       * @event save-edit
-       * @param {String} name Updated name
-       * @param {String} description Updated description
-       */
-      properties: {
+  /**
+   * An element to render project details editor.
+   *
+   * @polymer
+   * @customElement
+   * @memberof UiElements
+   * @demo demo/index.html
+   */
+  class ProjectDetailsEditor extends Polymer.Element {
+    static get is() { return 'project-details-editor'; }
+    static get properties() {
+      return {
         /**
          * Name of the project.
          */
@@ -79,31 +76,53 @@ An element to render project details editor.
          * The description of the project
          */
         description: String
-      },
-      /**
-       * Sends the `cancel-edit` custom event to the parent element.
-       */
-      cancel: function() {
-        this.fire('cancel-edit', {}, {
-          bubbles: false
-        });
-      },
-      /**
-       * Sends the `save-edit` custom event to the parent element.
-       */
-      save: function() {
-        var name = this.name.trim();
-        if (!name) {
-          this.$.missingName.opened = true;
-          return;
-        }
-        this.fire('save-edit', {
+      };
+    }
+    /**
+     * Sends the `cancel-edit` custom event to the parent element.
+     */
+    cancel() {
+      this.dispatchEvent(new CustomEvent('cancel-edit', {
+        composed: true
+      }));
+    }
+    /**
+     * Sends the `save-edit` custom event to the parent element.
+     */
+    save() {
+      const name = this.name.trim();
+      if (!name) {
+        this.$.missingName.opened = true;
+        return;
+      }
+      this.dispatchEvent(new CustomEvent('save-edit', {
+        composed: true,
+        detail: {
           name: this.name,
           description: this.description
-        }, {
-          bubbles: false
-        });
-      }
-    });
+        }
+      }));
+    }
+    /**
+     * Fired when the user cancelled the action-button.
+     *
+     * This event does not bubbles.
+     *
+     * @event cancel-edit
+     */
+    /**
+     * Fired when the user requested to save the data.
+     * This element does not recognize if any change actually has been made
+     * to the data so parent element may want to check if any data actually
+     * changed.
+     *
+     * This event does not bubbles.
+     *
+     * @event save-edit
+     * @param {String} name Updated name
+     * @param {String} description Updated description
+     */
+  }
+  window.customElements.define(ProjectDetailsEditor.is, ProjectDetailsEditor);
   </script>
 </dom-module>
