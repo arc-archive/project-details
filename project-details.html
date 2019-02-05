@@ -106,8 +106,13 @@ the License.
       color: #fff;
     }
 
-    project-details-editor {
+    project-details-editor,
+    .export-options-form {
       margin: 0 16px 24px 16px;
+    }
+
+    .export-options-form {
+      margin-bottom: 0;
     }
 
     bottom-sheet {
@@ -201,12 +206,27 @@ the License.
     </bottom-sheet>
 
     <bottom-sheet opened="{{editorOpened}}" on-iron-overlay-opened="_resizeSheetContent">
-      <saved-request-editor id="requestEditor" no-auto-projects="[[noAutoProjects]]" on-cancel-request-edit="_cancelRequestEdit" on-save-request="_saveRequestEdit"></saved-request-detail>
+      <saved-request-editor id="requestEditor" no-auto-projects="[[noAutoProjects]]" on-cancel-request-edit="_cancelRequestEdit" on-save-request="_saveRequestEdit"></saved-request-editor>
     </bottom-sheet>
 
     <bottom-sheet opened="{{edit}}" on-iron-overlay-opened="_resizeSheetContent">
       <h3>Edit project</h3>
       <project-details-editor name="[[project.name]]" description="[[project.description]]" on-cancel-edit="_cancelEdit" on-save-edit="_saveEdit"></project-details-editor>
+    </bottom-sheet>
+
+    <bottom-sheet opened="{{exportOptions}}" on-iron-overlay-opened="_resizeSheetContent">
+      <h3>Export options</h3>
+      <div class="export-options-form">
+        <paper-input label="File name" value="{{_exportOptions.file}}"></paper-input>
+        <paper-dropdown-menu label="Destination">
+          <paper-listbox slot="dropdown-content" selected="{{_exportOptions.destination}}" attr-for-selected="value">
+            <paper-icon-item value="file"><iron-icon icon="arc:archive" slot="item-icon"></iron-icon>Export to file</paper-icon-item>
+            <paper-icon-item value="drive"><iron-icon icon="arc:drive-color" slot="item-icon"></iron-icon>Export to Google Drive</paper-icon-item>
+          </paper-listbox>
+        </paper-dropdown-menu>
+        <paper-input label="Folder name" value="{{_exportOptions.drive.parent}}"></paper-input>
+        <paper-button on-click="_confirmExportOptions">Export</paper-button>
+      </div>
     </bottom-sheet>
 
     <paper-dialog id="projectDeleteDialog" on-iron-overlay-closed="_deleteDialogResult">
@@ -343,7 +363,19 @@ the License.
          * When set the element won't request projects list when attached to the dom.
          * This is passed to the request editor.
          */
-        noAutoProjects: Boolean
+        noAutoProjects: Boolean,
+        _exportOptions: {
+          type: Object,
+          value: function() {
+            return {
+              file: this._generateFileName(),
+              destination: 'file',
+              drive: {
+                parent: 'My Drive'
+              }
+            };
+          }
+        }
       };
     }
 
