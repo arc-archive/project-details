@@ -21,7 +21,10 @@
   <link rel="import" href="../../arc-data-generator/arc-data-generator.html">
   <link rel="import" href="../../projects-menu/projects-menu.html">
   <link rel="import" href="../../arc-electron-default-theme/arc-electron-default-theme.html">
+  <link rel="import" href="../../arc-data-export/arc-data-export.html">
+  <link rel="import" href="../../bottom-sheet/bottom-sheet.html">
   <link rel="import" href="../project-details.html">
+
   <custom-style>
     <style include="demo-pages-shared-styles">
     body,
@@ -70,6 +73,10 @@
     h2 {
       @apply --paper-font-title;
     }
+
+    bottom-sheet {
+      max-height: calc(100vh - 64px);
+    }
     </style>
   </custom-style>
 </head>
@@ -78,6 +85,7 @@
     <template>
       <request-model id="rModel"></request-model>
       <project-model id="pModel"></project-model>
+      <arc-data-export app-version="demo-page"></arc-data-export>
 
       <div class="app">
         <nav>
@@ -95,6 +103,13 @@
           </div>
         </section>
       </div>
+
+      <bottom-sheet opened="{{exportSheetOpened}}">
+        <h3>Export preview</h3>
+        <p>This is a preview of the file. Normally export module would save this data to file / Drive.</p>
+        <p>File: [[exportFile]]</p>
+        <pre>[[exportData]]</pre>
+      </bottom-sheet>
     </template>
   </dom-bind>
   <paper-toast text="Data are now ready" id="indexOk"></paper-toast>
@@ -211,11 +226,20 @@
       toast('updateToast', 'Export requested');
     };
 
+    scope._fileExportHandler = function(e) {
+      const {content, file} = e.detail;
+      scope.exportData = JSON.stringify(content, null, 2);
+      scope.exportFile = file;
+      scope.exportSheetOpened = true;
+      e.preventDefault();
+    };
+
     window.addEventListener('WebComponentsReady', scope.init);
     window.addEventListener('export-google-drive', scope._mockDriveExport);
     window.addEventListener('navigate', scope._navigateHandler);
     window.addEventListener('request-object-changed', scope._requestChangeHandler);
-    window.addEventListener('export-data', scope._exportHandler);
+    window.addEventListener('file-data-save', scope._fileExportHandler);
+    window.addEventListener('google-drive-data-save', scope._fileExportHandler);
   })(document.getElementById('demo'));
   </script>
 </body>

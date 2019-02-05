@@ -49,7 +49,8 @@
     "arc-data-generator": "advanced-rest-client/arc-data-generator#^1.0.1",
     "paper-dropdown-menu": "PolymerElements/paper-dropdown-menu#^2.0.0",
     "arc-electron-default-theme": "advanced-rest-client/arc-electron-default-theme#2.0.0-preview",
-    "projects-menu": "advanced-rest-client/projects-menu#^2.0.0"
+    "projects-menu": "advanced-rest-client/projects-menu#^2.0.0",
+    "arc-data-export": "advanced-rest-client/arc-data-export#^2.0.0"
   },
   "ignore": [
     "**/.*",

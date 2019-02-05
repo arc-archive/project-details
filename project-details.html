@@ -186,6 +186,7 @@ the License.
     <paper-toast id="revertError" class="error-toast" text="Unable to revert changes. Please, report an issue."></paper-toast>
     <paper-toast id="reorderError" class="error-toast" text="Unable to reorder items. Please, report an issue."></paper-toast>
     <paper-toast id="noExport" class="error-toast" text="Export module not found. Please, report an issue."></paper-toast>
+    <paper-toast id="exportError" class="error-toast"></paper-toast>
     <paper-toast id="driveSaved" text="Project saved on Google Drive."></paper-toast>
     <paper-toast id="modelError" class="error-toast"></paper-toast>
 
@@ -701,21 +702,36 @@ the License.
      *
      * @param {Array} requests List of request to export with the project.
      * @param {String} destination
+     * @return {Promise}
      */
     _exportItems(requests, destination) {
       destination = destination || 'file';
       const e = this._dispatchExportData(destination, requests);
       if (!e.defaultPrevented) {
         this.$.noExport.opened = true;
-        return;
+        return Promise.reject(new Error('No export module.'));
       }
-      e.detail.result
+      return e.detail.result
       .then(() => {
         if (destination === 'drive') {
           this.$.driveSaved.opened = true;
         }
+      })
+      .catch((cause) => {
+        if (!cause || !cause.message) {
+          return;
+        }
+        console.warn(cause);
+        this.$.exportError.text = cause.message;
+        this.$.exportError.opened = true;
       });
     }
+
+    _generateFileName() {
+      const project = this.project;
+      return (project ? project.name : 'project-export') + '.json';
+    }
+
     /**
      * Dispatches `export-data` event and returns it.
      * @param {String} destination A place where export the data (file, drive)
@@ -723,19 +739,18 @@ the License.
      * @return {CustomEvent}
      */
     _dispatchExportData(destination, requests) {
-      const project = this.project;
-      const file = project.name + '.json';
+      const file = this._generateFileName();
       const e = new CustomEvent('export-data', {
         cancelable: true,
         composed: true,
         bubbles: true,
         detail: {
-          type: 'project',
+          type: 'arc-export',
           destination,
           file,
           kind: 'ARC#ProjectExport',
           data: {
-            project,
+            projects: [this.project],
             requests
           }
         }

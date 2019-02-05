@@ -16,15 +16,21 @@
   <body>
     <request-model></request-model>
     <project-model></project-model>
+
     <test-fixture id="basic">
       <template>
         <project-details></project-details>
       </template>
     </test-fixture>
 
+    <test-fixture id="NoAuto">
+      <template>
+        <project-details no-auto-projects></project-details>
+      </template>
+    </test-fixture>
     <script>
     /* global DataGenerator, DataHelper */
-    suite('_onExportAll()', function() {
+    suite('_dispatchExportData()', function() {
       let element;
       let projectId;
       suiteSetup(function() {
@@ -37,35 +43,166 @@
       suiteTeardown(function() {
         return DataGenerator.destroySavedRequestData();
       });
+
       setup(function() {
         element = fixture('basic');
         element.projectId = projectId;
         return DataHelper.doneWhenLoaded(element);
       });
 
-      test('Fires export-data event', function() {
+      test('Dispatches "export-data" event', () => {
         const spy = sinon.spy();
         element.addEventListener('export-data', spy);
-        element._onExportAll();
+        element._dispatchExportData('file', element.requests);
         assert.isTrue(spy.calledOnce);
       });
-      test('export-data is cancelable', function(done) {
-        element.addEventListener('export-data', function f(e) {
-          e.preventDefault();
-          element.removeEventListener('export-data', f);
-          assert.isTrue(e.cancelable);
-          done();
-        });
-        element._onExportAll();
+
+      test('Returns the event', () => {
+        const e = element._dispatchExportData('file', element.requests);
+        assert.typeOf(e, 'customevent');
+        assert.equal(e.type, 'export-data');
       });
-      test('Export destination is set', function(done) {
-        element.addEventListener('export-data', function f(e) {
-          e.preventDefault();
-          element.removeEventListener('export-data', f);
-          assert.equal(e.detail.destination, 'file');
-          done();
+
+      test('Event bubbles', () => {
+        const e = element._dispatchExportData('file', element.requests);
+        assert.isTrue(e.bubbles);
+      });
+
+      test('Event is composed', () => {
+        const e = element._dispatchExportData('file', element.requests);
+        if (typeof e.composed !== 'undefined') { // Edge...
+          assert.isTrue(e.composed);
+        }
+      });
+
+      test('Event is cancelable', () => {
+        const e = element._dispatchExportData('file', element.requests);
+        assert.isTrue(e.cancelable);
+      });
+
+      test('Detail has type', () => {
+        const e = element._dispatchExportData('file', element.requests);
+        assert.equal(e.detail.type, 'arc-export');
+      });
+
+      test('Detail has destination', () => {
+        const e = element._dispatchExportData('file', element.requests);
+        assert.equal(e.detail.destination, 'file');
+      });
+
+      test('Detail has file', () => {
+        const e = element._dispatchExportData('file', element.requests);
+        assert.equal(e.detail.file, element._generateFileName());
+      });
+
+      test('Detail has kind', () => {
+        const e = element._dispatchExportData('file', element.requests);
+        assert.equal(e.detail.kind, 'ARC#ProjectExport');
+      });
+
+      test('Detail has data', () => {
+        const e = element._dispatchExportData('file', element.requests);
+        assert.typeOf(e.detail.data, 'object');
+      });
+
+      test('Project is set', () => {
+        const e = element._dispatchExportData('file', element.requests);
+        assert.deepEqual(e.detail.data.projects, [element.project]);
+      });
+
+      test('Requests is set', () => {
+        const e = element._dispatchExportData('file', element.requests);
+        assert.deepEqual(e.detail.data.requests, element.requests);
+      });
+    });
+
+    suite('_generateFileName()', () => {
+      let element;
+      setup(function() {
+        element = fixture('NoAuto');
+      });
+
+      test('Returns default name when no project', () => {
+        const result = element._generateFileName();
+        assert.equal(result, 'project-export.json');
+      });
+
+      test('Returns project name', () => {
+        element.project = {
+          name: 'test name'
+        };
+        const result = element._generateFileName();
+        assert.equal(result, 'test name.json');
+      });
+    });
+
+    suite('_exportItems()', () => {
+      let element;
+      let projectId;
+      suiteSetup(function() {
+        return DataHelper.generateData()
+        .then((result) => {
+          projectId = result.projectId;
         });
-        element._onExportAll();
+      });
+
+      suiteTeardown(function() {
+        return DataGenerator.destroySavedRequestData();
+      });
+
+      setup(function() {
+        element = fixture('basic');
+        element.projectId = projectId;
+        return DataHelper.doneWhenLoaded(element);
+      });
+
+      function handler(e) {
+        e.preventDefault();
+        e.detail.result = Promise.resolve();
+      }
+
+      function handlerError(e) {
+        e.preventDefault();
+        e.detail.result = Promise.reject(new Error('test-error'));
+      }
+
+      teardown(() => {
+        window.removeEventListener('export-data', handler);
+        window.removeEventListener('export-data', handlerError);
+      });
+
+      test('Returns promise', () => {
+        window.addEventListener('export-data', handler);
+        const result = element._exportItems(element.requests, 'file');
+        assert.typeOf(result.then, 'function');
+        return result;
+      });
+
+      test('Calls _dispatchExportData() with arguments', () => {
+        window.addEventListener('export-data', handler);
+        const spy = sinon.spy(element, '_dispatchExportData');
+        return element._exportItems(element.requests, 'file')
+        .then(() => {
+          assert.isTrue(spy.called);
+          assert.equal(spy.args[0][0], 'file');
+          assert.deepEqual(spy.args[0][1], element.requests);
+        });
+      });
+
+      test('Opens Drive toast', () => {
+        window.addEventListener('export-data', handler);
+        return element._exportItems(element.requests, 'drive')
+        .then(() => {
+          assert.isTrue(element.$.driveSaved.opened);
+        });
+      });
+
+      test('Opens exportError toast when error', () => {
+        window.addEventListener('export-data', handlerError);
+        return element._exportItems(element.requests, 'drive')
+        .then(() => {
+          assert.isTrue(element.$.exportError.opened);
+        });
       });
     });
 
@@ -82,19 +219,139 @@
       suiteTeardown(function() {
         return DataGenerator.destroySavedRequestData();
       });
+
+      function handler(e) {
+        e.preventDefault();
+        e.detail.result = Promise.resolve();
+      }
+
       setup(function() {
         element = fixture('basic');
         element.projectId = projectId;
+        window.addEventListener('export-data', handler);
         return DataHelper.doneWhenLoaded(element);
       });
 
-      test('Export destination is set', function(done) {
-        element.addEventListener('export-data', function f(e) {
-          element.removeEventListener('export-data', f);
-          assert.equal(e.detail.destination, 'drive');
-          done();
-        });
+      teardown(() => {
+        window.removeEventListener('export-data', handler);
+      });
+
+      test('Calls _exportItems() with arguments', function() {
+        const spy = sinon.spy(element, '_exportItems');
         element._onExportAllDrive();
+        assert.isTrue(spy.called);
+        assert.deepEqual(spy.args[0][0], element.requests);
+        assert.equal(spy.args[0][1], 'drive');
+      });
+
+      test('Calls _closeMainMenu()', function() {
+        const spy = sinon.spy(element, '_closeMainMenu');
+        element._onExportAllDrive();
+        assert.isTrue(spy.called);
+      });
+    });
+
+    suite('_onExportAll()', function() {
+      let element;
+      let projectId;
+      suiteSetup(function() {
+        return DataHelper.generateData()
+        .then((result) => {
+          projectId = result.projectId;
+        });
+      });
+
+      suiteTeardown(function() {
+        return DataGenerator.destroySavedRequestData();
+      });
+
+      function handler(e) {
+        e.preventDefault();
+        e.detail.result = Promise.resolve();
+      }
+
+      setup(function() {
+        element = fixture('basic');
+        element.projectId = projectId;
+        window.addEventListener('export-data', handler);
+        return DataHelper.doneWhenLoaded(element);
+      });
+
+      teardown(() => {
+        window.removeEventListener('export-data', handler);
+      });
+
+      test('Calls _exportItems() with arguments', function() {
+        const spy = sinon.spy(element, '_exportItems');
+        element._onExportAll();
+        assert.isTrue(spy.called);
+        assert.deepEqual(spy.args[0][0], element.requests);
+        assert.equal(spy.args[0][1], 'file');
+      });
+
+      test('Calls _closeMainMenu()', function() {
+        const spy = sinon.spy(element, '_closeMainMenu');
+        element._onExportAll();
+        assert.isTrue(spy.called);
+      });
+    });
+
+    suite('_onExport()', function() {
+      let element;
+      let projectId;
+      suiteSetup(function() {
+        return DataHelper.generateData()
+        .then((result) => {
+          projectId = result.projectId;
+        });
+      });
+
+      suiteTeardown(function() {
+        return DataGenerator.destroySavedRequestData();
+      });
+
+      function handler(e) {
+        e.preventDefault();
+        e.detail.result = Promise.resolve();
+      }
+
+      setup(function() {
+        element = fixture('basic');
+        element.projectId = projectId;
+        window.addEventListener('export-data', handler);
+        return DataHelper.doneWhenLoaded(element);
+      });
+
+      teardown(() => {
+        window.removeEventListener('export-data', handler);
+      });
+
+      test('Calls _exportItems() with arguments', function() {
+        const spy = sinon.spy(element, '_exportItems');
+        const items = [{test: true}];
+        const destination = 'file';
+        element._onExport({
+          detail: {
+            destination,
+            items
+          }
+        });
+        assert.isTrue(spy.called);
+        assert.deepEqual(spy.args[0][0], items);
+        assert.equal(spy.args[0][1], destination);
+      });
+
+      test('Calls _closeMainMenu()', function() {
+        const spy = sinon.spy(element, '_closeMainMenu');
+        const items = [{test: true}];
+        const destination = 'file';
+        element._onExport({
+          detail: {
+            destination,
+            items
+          }
+        });
+        assert.isTrue(spy.called);
       });
     });
     </script>
