@@ -412,7 +412,11 @@ the License.
       this.dispatchEvent(e);
       return e;
     }
-
+    /**
+     * Called when project id changed
+     * @param {String} projectId Changed project ID
+     * @return {Promise} For tests, this function is called automatically on change.
+     */
     _projectChanged(projectId) {
       if (this.editorOpened) {
         this.editorOpened = false;
@@ -423,39 +427,36 @@ the License.
       if (!projectId) {
         return;
       }
-      this._setLoadingProject(true);
-      this._setLoadingRequests(true);
-
       const e = this._dispatchProjectRead(projectId);
       if (!e.defaultPrevented) {
         console.warn('project-read event not handled!');
-        this._setLoadingProject(false);
         return Promise.reject(new Error('no model'));
       }
+      this._setLoadingProject(true);
       return e.detail.result
       .then((project) => {
         this.set('project', project);
-        this._setupRequests(project);
         this._setLoadingProject(false);
+        return this._setupRequests(project);
       })
       .catch((cause) => {
         this.$.modelError.text = cause.message;
         this.$.modelError.opened = true;
-        console.error(cause);
+        console.warn(cause);
         this._setLoadingProject(false);
+        this._setLoadingRequests(false);
       });
     }
 
     _setupRequests(project) {
-      const projectHasRequests = !!project.requests;
-      this._setLoadingRequests(true);
       const e = this._dispatchRequestRead(project._id);
       if (!e.defaultPrevented) {
         console.warn('request-project-list event not handled!');
-        this._setLoadingProject(false);
         return;
       }
-      e.detail.result
+      const projectHasRequests = !!project.requests;
+      this._setLoadingRequests(true);
+      return e.detail.result
       .then((requests) => {
         if (!projectHasRequests) {
           requests.sort(this._legacySort);
@@ -469,7 +470,7 @@ the License.
       .catch((cause) => {
         this.$.modelError.text = cause.message;
         this.$.modelError.opened = true;
-        console.error(cause);
+        console.warn(cause);
         this._setLoadingRequests(false);
       });
     }
@@ -510,7 +511,11 @@ the License.
         }
       }
     }
-
+    /**
+     * Tests whether the request belongs to a project.
+     * @param {Object} request The request object.
+     * @return {Boolean}
+     */
     _isProjectRequest(request) {
       const projectId = this.projectId;
       if (!projectId) {
@@ -763,6 +768,9 @@ the License.
      */
     _persistReorder() {
       const items = this.requests;
+      if (!items || !this.project) {
+        return;
+      }
       const newOrder = items.map((item) => item._id);
       if (this.project.requests === newOrder) {
         return;

@@ -8,14 +8,6 @@
     "sauce": {
       "disabled": true,
       "browsers": [{
-        "browserName": "microsoftedge",
-        "platform": "Windows 10",
-        "version": ""
-      }, {
-        "browserName": "firefox",
-        "platform": "Windows 10",
-        "version": "latest-4"
-      }, {
         "browserName": "firefox",
         "platform": "Windows 10",
         "version": "latest"
@@ -36,6 +28,26 @@
         "platform": "macOS 10.13",
         "version": "11.1"
       }]
+    },
+    "istanbub": {
+      "dir": "./coverage",
+      "reporters": ["text-summary", "lcov"],
+      "include": [
+        "**/*.html"
+      ],
+      "exclude": [
+        "**/test/**",
+        "**/demo/**",
+        "**/tasks/**"
+      ],
+      "thresholds": {
+        "global": {
+          "statements": 70,
+          "branches": 65,
+          "functions": 80,
+          "lines": 70
+        }
+      }
     }
   }
 }

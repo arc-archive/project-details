@@ -2,7 +2,7 @@ const DataHelper = {};
 /* global DataGenerator */
 DataHelper.generateData = function() {
   return DataGenerator.insertSavedRequestData({
-    projectsSize: 1,
+    projectsSize: 2,
     requestsSize: 20
   })
   .then((data) => {
@@ -15,7 +15,8 @@ DataHelper.generateData = function() {
     });
     return {
       projectId,
-      requests
+      requests,
+      projects: data.projects
     };
   });
 };
