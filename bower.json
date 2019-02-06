@@ -35,7 +35,8 @@
     "saved-request-editor": "advanced-rest-client/saved-request-editor#^2.0.0",
     "saved-request-detail": "advanced-rest-client/saved-request-detail#^2.0.0",
     "marked-element": "PolymerElements/marked-element#^2.0.0",
-    "markdown-styles": "advanced-rest-client/markdown-styles#^2.0.0"
+    "markdown-styles": "advanced-rest-client/markdown-styles#^2.0.0",
+    "export-options": "advanced-rest-client/export-options#^2.0.0"
   },
   "devDependencies": {
     "iron-component-page": "PolymerElements/iron-component-page#^3.0.1",

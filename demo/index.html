@@ -138,24 +138,7 @@
       });
     };
     scope.deleteData = function() {
-      /* global RequestDb */
-      const indexer = new RequestDb();
-      return indexer.openSearchStore()
-      .then((db) => {
-        return new Promise((resolve, reject) => {
-          const tx = db.transaction('urls', 'readwrite');
-          const store = tx.objectStore('urls');
-          const results = [];
-          tx.onerror = () => {
-            reject(results);
-          };
-          tx.oncomplete = () => {
-            resolve(results);
-          };
-          store.clear();
-        });
-      })
-      .then(() => DataGenerator.destroySavedRequestData())
+      DataGenerator.destroySavedRequestData()
       .then(() => {
         document.getElementById('deleteOk').opened = true;
       });

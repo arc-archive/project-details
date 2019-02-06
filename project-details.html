@@ -27,6 +27,7 @@ the License.
 <link rel="import" href="../paper-fab/paper-fab.html">
 <link rel="import" href="../marked-element/marked-element.html">
 <link rel="import" href="../markdown-styles/markdown-styles.html">
+<link rel="import" href="../export-options/export-options.html">
 <link rel="import" href="../paper-styles/shadow.html">
 <link rel="import" href="project-details-editor.html">
 <dom-module id="project-details">
@@ -60,22 +61,22 @@ the License.
       margin-left: 16px;
     }
 
-    paper-listbox iron-icon {
+    .menu-item iron-icon {
       color: var(--context-menu-item-color);
     }
 
-    paper-listbox paper-icon-item {
+    .menu-item {
       color: var(--context-menu-item-color);
       background-color: var(--context-menu-item-background-color);
       cursor: pointer;
     }
 
-    paper-listbox paper-icon-item:hover {
+    .menu-item:hover {
       color: var(--context-menu-item-color-hover);
       background-color: var(--context-menu-item-background-color-hover);
     }
 
-    paper-listbox paper-icon-item:hover iron-icon {
+    .menu-item:hover iron-icon {
       color: var(--context-menu-item-color-hover);
     }
 
@@ -155,10 +156,9 @@ the License.
       <paper-menu-button>
         <paper-icon-button slot="dropdown-trigger" icon="arc:more-vert"></paper-icon-button>
         <paper-listbox slot="dropdown-content" id="contextMenu">
-          <paper-icon-item on-click="toggleEdit"><iron-icon icon="arc:edit" slot="item-icon"></iron-icon>Edit</paper-icon-item>
-          <paper-icon-item on-click="_onExportAll"><iron-icon icon="arc:archive" slot="item-icon"></iron-icon>Export to file</paper-icon-item>
-          <paper-icon-item on-click="_onExportAllDrive"><iron-icon icon="arc:drive-color" slot="item-icon"></iron-icon>Export to Google Drive</paper-icon-item>
-          <paper-icon-item on-click="_deleteProject"><iron-icon icon="arc:clear" slot="item-icon"></iron-icon>Delete</paper-icon-item>
+          <paper-icon-item class="menu-item" on-click="toggleEdit"><iron-icon icon="arc:edit" slot="item-icon"></iron-icon>Edit</paper-icon-item>
+          <paper-icon-item class="menu-item" on-click="toggleExportAll"><iron-icon icon="arc:export-variant" slot="item-icon"></iron-icon>Export project</paper-icon-item>
+          <paper-icon-item class="menu-item" on-click="_deleteProject"><iron-icon icon="arc:clear" slot="item-icon"></iron-icon>Delete</paper-icon-item>
         </paper-listbox>
       </paper-menu-button>
     </div>
@@ -214,19 +214,8 @@ the License.
       <project-details-editor name="[[project.name]]" description="[[project.description]]" on-cancel-edit="_cancelEdit" on-save-edit="_saveEdit"></project-details-editor>
     </bottom-sheet>
 
-    <bottom-sheet opened="{{exportOptions}}" on-iron-overlay-opened="_resizeSheetContent">
-      <h3>Export options</h3>
-      <div class="export-options-form">
-        <paper-input label="File name" value="{{_exportOptions.file}}"></paper-input>
-        <paper-dropdown-menu label="Destination">
-          <paper-listbox slot="dropdown-content" selected="{{_exportOptions.destination}}" attr-for-selected="value">
-            <paper-icon-item value="file"><iron-icon icon="arc:archive" slot="item-icon"></iron-icon>Export to file</paper-icon-item>
-            <paper-icon-item value="drive"><iron-icon icon="arc:drive-color" slot="item-icon"></iron-icon>Export to Google Drive</paper-icon-item>
-          </paper-listbox>
-        </paper-dropdown-menu>
-        <paper-input label="Folder name" value="{{_exportOptions.drive.parent}}"></paper-input>
-        <paper-button on-click="_confirmExportOptions">Export</paper-button>
-      </div>
+    <bottom-sheet opened="{{_exportOptionsOpened}}" on-iron-overlay-opened="_resizeSheetContent">
+      <export-options file="{{_exportOptions.file}}" destination="{{_exportOptions.destination}}" drive="{{_exportOptions.drive}}" on-accept="_acceptExportOptions" on-cancel="_cancelExportOptions"></export-options>
     </bottom-sheet>
 
     <paper-dialog id="projectDeleteDialog" on-iron-overlay-closed="_deleteDialogResult">
@@ -234,7 +223,7 @@ the License.
       <p>This will remove the project and all request data associated with the project.</p>
       <p>Maybe you should create a backup first?</p>
       <div class="buttons">
-        <paper-button on-click="_onExportAll">Create file backup</paper-button>
+        <paper-button on-click="_exportAllFile">Create file backup</paper-button>
         <paper-button dialog-dismiss autofocus>Cancel</paper-button>
         <paper-button dialog-confirm class="action-button">Destroy</paper-button>
       </div>
@@ -364,6 +353,10 @@ the License.
          * This is passed to the request editor.
          */
         noAutoProjects: Boolean,
+        /**
+         * Indicates that the export options panel is currently rendered.
+         */
+        _exportOptionsOpened: Boolean,
         _exportOptions: {
           type: Object,
           value: function() {
@@ -381,7 +374,8 @@ the License.
 
     static get observers() {
       return [
-        '_cancelRequestLoading(loadingRequests, hasRequests)'
+        '_cancelRequestLoading(loadingRequests, hasRequests)',
+        '_updateExportFile(project.name)'
       ];
     }
 
@@ -719,20 +713,31 @@ the License.
       this.$.contextMenu.selected = -1;
       this.$.contextMenu.parentElement.opened = false;
     }
-    // Handles the export event. Fires `export-data` custom event
-    _onExport(e) {
-      this._closeMainMenu();
-      this._exportItems(e.detail.items, e.detail.destination);
-    }
-    // Menu item handler to export all project data
-    _onExportAll() {
-      this._closeMainMenu();
-      this._exportItems(this.requests, 'file');
+    /**
+     * Toggles export options panel and sets export items to all currently loaded requests.
+     */
+    toggleExportAll() {
+      this._exportOptionsOpened = !this._exportOptionsOpened;
+      this._exportItems = this.requests || [];
     }
 
-    _onExportAllDrive() {
-      this._closeMainMenu();
-      this._exportItems(this.requests, 'drive');
+    _cancelExportOptions() {
+      this._exportOptionsOpened = false;
+      this._exportItems = undefined;
+    }
+
+    _acceptExportOptions(e) {
+      const opts = e.detail;
+      console.log(opts);
+    }
+
+    _onExport(e) {
+      this._exportOptionsOpened = true;
+      this._exportItems = e.detail.items || [];
+    }
+
+    _exportAllFile() {
+      this._exportItems(this.requests, 'file');
     }
     /**
      * Dispatches the `export-data` event with relevant data.
@@ -766,9 +771,8 @@ the License.
 
     _generateFileName() {
       const project = this.project;
-      return (project ? project.name : 'project-export') + '.json';
+      return (project ? project.name : 'arc-project-export') + '.json';
     }
-
     /**
      * Dispatches `export-data` event and returns it.
      * @param {String} destination A place where export the data (file, drive)
@@ -1061,6 +1065,19 @@ the License.
     _saveRequestEdit() {
       this.editorOpened = false;
       this.$.requestEditor.request = undefined;
+    }
+
+    _updateExportFile(name) {
+      if (!name) {
+        name = 'arc-project-export.json';
+      } else {
+        name = name.toLowerCase().replace(/\s/g, '-');
+        if (name[name.length - 1] !== '.') {
+          name += '.';
+        }
+        name += 'json';
+      }
+      this.set('_exportOptions.file', name);
     }
     /**
      * Fired when navigation was requested
