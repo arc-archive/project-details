@@ -13,6 +13,7 @@ the License.
 -->
 <link rel="import" href="../polymer/polymer-element.html">
 <link rel="import" href="../project-requests-list/project-requests-list.html">
+<link rel="import" href="../requests-list-mixin/requests-list-mixin.html">
 <link rel="import" href="../paper-toast/paper-toast.html">
 <link rel="import" href="../paper-button/paper-button.html">
 <link rel="import" href="../paper-icon-button/paper-icon-button.html">
@@ -40,6 +41,10 @@ the License.
       @apply --project-details;
     }
 
+    [hidden] {
+      display: none !important;
+    }
+
     .revert-button {
       height: 38px;
     }
@@ -53,12 +58,10 @@ the License.
     h2 {
       @apply --arc-font-headline;
       display: inline-block;
-      margin-left: 16px;
     }
 
     h3 {
       @apply --arc-font-subhead;
-      margin-left: 16px;
     }
 
     .menu-item iron-icon {
@@ -82,7 +85,6 @@ the License.
 
     .description {
       margin-bottom: 24px;
-      margin-left: 16px;
       @apply --project-details-description-container;
     }
 
@@ -109,7 +111,7 @@ the License.
 
     project-details-editor,
     .export-options-form {
-      margin: 0 16px 24px 16px;
+      margin: 0 16px 24px 0px;
     }
 
     .export-options-form {
@@ -173,18 +175,20 @@ the License.
       </template>
     </div>
 
-    <template is="dom-if" if="[[hasRequests]]">
+    <div hidden$="[[!hasRequests]]">
       <h3>Requests ([[requests.length]])</h3>
       <project-requests-list
-        items="[[requests]]"
+        requests="[[requests]]"
         on-list-items-delete="_onDelete"
         on-list-item-open="_onOpen"
         on-list-items-export="_onExport"
         on-dom-order-changed="_persistReorder"
-        on-list-item-details="_onDetails"></project-requests-list>
-    </template>
+        on-list-item-details="_onDetails"
+        list-type$="[[listType]]"
+        two-lines="[[_hasTwoLines]]"></project-requests-list>
+    </div>
     <template is="dom-if" if="[[!hasRequests]]">
-      <p>This project has no requests. <paper-button on-click="_deleteEmpty" class="primary-button" raised>Delete project</paper-button></p>
+      <p class="no-requests">This project has no requests. <paper-button on-click="_deleteEmpty" class="primary-button" raised>Delete project</paper-button></p>
     </template>
 
     <paper-toast id="noModel" class="error-toast" text="Model not found. Please, report an issue."></paper-toast>
@@ -288,8 +292,9 @@ the License.
    * @customElement
    * @memberof UiElements
    * @demo demo/index.html
+   * @appliesMixin ArcComponents.RequestsListMixin
    */
-  class ProjectDetails extends Polymer.Element {
+  class ProjectDetails extends ArcComponents.RequestsListMixin(Polymer.Element) {
     static get is() {
       return 'project-details';
     }
@@ -300,17 +305,8 @@ the License.
          */
         projectId: {
           type: String,
-          observer: '_projectChanged'
+          observer: '_projectIdChanged'
         },
-        /**
-         * List of requests to display.
-         * This list is computed when the `projectId` changes
-         */
-        requests: Array,
-        /**
-         * Project data restored from the datastore.
-         */
-        project: Object,
         /**
          * Set to true to enable project editor.
          */
@@ -329,14 +325,6 @@ the License.
           type: Boolean,
           notify: true,
           readOnly: true
-        },
-        /**
-         * Computed value, true when the project has requests.
-         */
-        hasRequests: {
-          type: Boolean,
-          value: false,
-          computed: '_computeHasRequests(requests.length)'
         },
         // List of requests that has been recently removed
         _latestDeleted: Array,
@@ -375,213 +363,154 @@ the License.
     static get observers() {
       return [
         '_cancelRequestLoading(loadingRequests, hasRequests)',
-        '_updateExportFile(project.name)'
+        '_updateExportFile(project.name)',
+        // '_setupRequests(project)'
       ];
     }
 
     constructor() {
       super();
-      this._projectDataChanged = this._projectDataChanged.bind(this);
       this._projectDeleteHandler = this._projectDeleteHandler.bind(this);
-      this._requestDeletedHandler = this._requestDeletedHandler.bind(this);
-      this._requestChangedHandler = this._requestChangedHandler.bind(this);
     }
 
     connectedCallback() {
       super.connectedCallback();
-      window.addEventListener('project-object-changed', this._projectDataChanged);
+      if (!this.type) {
+        this.type = 'project';
+      }
       window.addEventListener('project-object-deleted', this._projectDeleteHandler);
-      window.addEventListener('request-object-deleted', this._requestDeletedHandler);
-      window.addEventListener('request-object-changed', this._requestChangedHandler);
     }
 
     disconnectedCallback() {
       super.disconnectedCallback();
-      window.removeEventListener('project-object-changed', this._projectDataChanged);
       window.removeEventListener('project-object-deleted', this._projectDeleteHandler);
-      window.removeEventListener('request-object-deleted', this._requestDeletedHandler);
-      window.removeEventListener('request-object-changed', this._requestChangedHandler);
     }
 
     _navigate(detail) {
-      const e = new CustomEvent('navigate', {
-        bubbles: true,
-        composed: true,
-        detail
-      });
-      this.dispatchEvent(e);
-      return e;
+      return this._dispatch('navigate', detail);
     }
 
     _dispatchProjectRead(id) {
-      const e = new CustomEvent('project-read', {
-        bubbles: true,
-        cancelable: true,
-        composed: true,
-        detail: {
-          id
-        }
+      return this._dispatch('project-read', {
+        id
       });
-      this.dispatchEvent(e);
-      return e;
     }
 
     _dispatchRequestRead(id) {
-      const e = new CustomEvent('request-project-list', {
-        bubbles: true,
-        cancelable: true,
-        composed: true,
-        detail: {
-          id
-        }
+      return this._dispatch('request-project-list', {
+        id
       });
-      this.dispatchEvent(e);
-      return e;
     }
-    /**
-     * Called when project id changed
-     * @param {String} projectId Changed project ID
-     * @return {Promise} For tests, this function is called automatically on change.
-     */
-    _projectChanged(projectId) {
-      if (this.editorOpened) {
-        this.editorOpened = false;
-      }
-      if (this.detailsOpened) {
-        this.detailsOpened = false;
-      }
+
+    _projectIdChanged(projectId) {
+      this.project = undefined;
       if (!projectId) {
+        this.requests = undefined;
         return;
-      }
-      const e = this._dispatchProjectRead(projectId);
-      if (!e.defaultPrevented) {
-        console.warn('project-read event not handled!');
-        return Promise.reject(new Error('no model'));
       }
       this._setLoadingProject(true);
-      return e.detail.result
-      .then((project) => {
-        this.set('project', project);
-        this._setLoadingProject(false);
-        return this._setupRequests(project);
-      })
-      .catch((cause) => {
-        this.$.modelError.text = cause.message;
-        this.$.modelError.opened = true;
-        console.warn(cause);
-        this._setLoadingProject(false);
-        this._setLoadingRequests(false);
-      });
-    }
-
-    _setupRequests(project) {
-      const e = this._dispatchRequestRead(project._id);
-      if (!e.defaultPrevented) {
-        console.warn('request-project-list event not handled!');
-        return;
-      }
-      const projectHasRequests = !!project.requests;
       this._setLoadingRequests(true);
-      return e.detail.result
+      return this.readProjectRequests(projectId)
       .then((requests) => {
-        if (!projectHasRequests) {
-          requests.sort(this._legacySort);
-        }
         this.requests = requests;
+        this._setLoadingProject(false);
         this._setLoadingRequests(false);
-        if (!projectHasRequests) {
-          this._persistReorder();
-        }
       })
       .catch((cause) => {
         this.$.modelError.text = cause.message;
         this.$.modelError.opened = true;
         console.warn(cause);
+        this._setLoadingProject(false);
         this._setLoadingRequests(false);
       });
     }
-    /**
-     * Sorts requests list by `projectOrder` property
-     *
-     * @param {Object} a
-     * @param {Object} b
-     * @return {Number}
-     */
-    _legacySort(a, b) {
-      if (a.projectOrder > b.projectOrder) {
-        return 1;
-      }
-      if (a.projectOrder < b.projectOrder) {
-        return -1;
-      }
-      if (a.name > b.name) {
-        return 1;
-      }
-      if (a.name < b.name) {
-        return -1;
-      }
-      return 0;
-    }
-
-    _requestDeletedHandler(e) {
-      const requests = this.requests;
-      const projectId = this.projectId;
-      if (e.cancelable || !projectId || !requests || !requests.length) {
-        return;
-      }
-      const deleteId = e.detail.id;
-      for (let i = 0, len = requests.length; i < len; i++) {
-        if (requests[i]._id === deleteId) {
-          this.splice('requests', i, 1);
-          return;
-        }
-      }
-    }
-    /**
-     * Tests whether the request belongs to a project.
-     * @param {Object} request The request object.
-     * @return {Boolean}
-     */
-    _isProjectRequest(request) {
-      const projectId = this.projectId;
-      if (!projectId) {
-        return false;
-      }
-      if (request.projects && request.projects.indexOf(projectId) !== -1) {
-        return true;
-      } else if (request.legacyProject === projectId) {
-        return true;
-      }
-      return false;
-    }
-
-    _requestChangedHandler(e) {
-      const projectId = this.projectId;
-      if (e.cancelable || !projectId) {
-        return;
-      }
-      const requests = this.requests;
-      const request = e.detail.request;
-      if (!requests) {
-        if (this._isProjectRequest(request)) {
-          this.requests = [request];
-        }
-        return;
-      }
-      for (let i = 0, len = requests.length; i < len; i++) {
-        if (requests[i]._id === request._id) {
-          if (this._isProjectRequest(request)) {
-            this.set(`requests.${i}`, request);
-          } else {
-            this.splice('requests', i, 1);
-          }
-          return;
-        }
-      }
-      if (this._isProjectRequest(request)) {
-        this.push(`requests`, request);
-      }
-    }
+    // /**
+    //  * Called when project id changed
+    //  * @param {String} projectId Changed project ID
+    //  * @return {Promise} For tests, this function is called automatically on change.
+    //  */
+    // _projectIdChanged(projectId) {
+    //   if (this.editorOpened) {
+    //     this.editorOpened = false;
+    //   }
+    //   if (this.detailsOpened) {
+    //     this.detailsOpened = false;
+    //   }
+    //   if (!projectId) {
+    //     return;
+    //   }
+    //   const e = this._dispatchProjectRead(projectId);
+    //   if (!e.defaultPrevented) {
+    //     console.warn('project-read event not handled!');
+    //     return Promise.reject(new Error('no model'));
+    //   }
+    //   this._setLoadingProject(true);
+    //   return e.detail.result
+    //   .then((project) => {
+    //     this.set('project', project);
+    //     this._setLoadingProject(false);
+    //     return this._setupRequests(project);
+    //   })
+    //   .catch((cause) => {
+    //     this.$.modelError.text = cause.message;
+    //     this.$.modelError.opened = true;
+    //     console.warn(cause);
+    //     this._setLoadingProject(false);
+    //     this._setLoadingRequests(false);
+    //   });
+    // }
+    //
+    // _setupRequests(project) {
+    //   if (!project) {
+    //     return;
+    //   }
+    //   const e = this._dispatchRequestRead(project._id);
+    //   if (!e.defaultPrevented) {
+    //     console.warn('request-project-list event not handled!');
+    //     return;
+    //   }
+    //   const projectHasRequests = !!project.requests;
+    //   this._setLoadingRequests(true);
+    //   return e.detail.result
+    //   .then((requests) => {
+    //     if (!projectHasRequests) {
+    //       requests.sort(this._legacySort);
+    //     }
+    //     this.requests = requests;
+    //     this._setLoadingRequests(false);
+    //     if (!projectHasRequests) {
+    //       this._persistReorder();
+    //     }
+    //   })
+    //   .catch((cause) => {
+    //     this.$.modelError.text = cause.message;
+    //     this.$.modelError.opened = true;
+    //     console.warn(cause);
+    //     this._setLoadingRequests(false);
+    //   });
+    // }
+    // /**
+    //  * Sorts requests list by `projectOrder` property
+    //  *
+    //  * @param {Object} a
+    //  * @param {Object} b
+    //  * @return {Number}
+    //  */
+    // _legacySort(a, b) {
+    //   if (a.projectOrder > b.projectOrder) {
+    //     return 1;
+    //   }
+    //   if (a.projectOrder < b.projectOrder) {
+    //     return -1;
+    //   }
+    //   if (a.name > b.name) {
+    //     return 1;
+    //   }
+    //   if (a.name < b.name) {
+    //     return -1;
+    //   }
+    //   return 0;
+    // }
 
     _cancelRequestLoading(loadingRequests, hasRequests) {
       if (loadingRequests && hasRequests) {
@@ -737,7 +666,7 @@ the License.
     }
 
     _exportAllFile() {
-      this._exportItems(this.requests, 'file');
+      this._doExportItems(this.requests, 'file');
     }
     /**
      * Dispatches the `export-data` event with relevant data.
@@ -746,7 +675,7 @@ the License.
      * @param {String} destination
      * @return {Promise}
      */
-    _exportItems(requests, destination) {
+    _doExportItems(requests, destination) {
       destination = destination || 'file';
       const e = this._dispatchExportData(destination, requests);
       if (!e.defaultPrevented) {
@@ -841,10 +770,7 @@ the License.
       }
       return e.detail.result;
     }
-    // Computes value for the `hasRequests` property.
-    _computeHasRequests(length) {
-      return !!(length);
-    }
+
     // Toogles project details editor
     toggleEdit() {
       this.edit = !this.edit;
@@ -897,21 +823,6 @@ the License.
         return new Promise.reject(new Error('Model event not handled.'));
       }
       return e.detail.result;
-    }
-
-    /**
-     * handler for the `project-object-changed`. Updates project data if needed.
-     * @param {CustomEvent} e
-     */
-    _projectDataChanged(e) {
-      if (e.composedPath()[0] === this || e.cancelable) {
-        return;
-      }
-      if (e.detail.project._id !== this.projectId) {
-        return;
-      }
-      this.set('project', e.detail.project);
-      this._setupRequests(e.detail.project);
     }
     /**
      * Handler for the `project-object-deleted` event.
@@ -1078,6 +989,21 @@ the License.
         name += 'json';
       }
       this.set('_exportOptions.file', name);
+    }
+    /**
+     * Updates icon size CSS variable and notifies resize on the list when
+     * list type changes.
+     * @param {?String} type
+     */
+    _updateListStyles(type) {
+      let size;
+      switch (type) {
+        case 'comfortable': size = 40; break;
+        case 'compact': size = 36; break;
+        default: size = 56; break;
+      }
+      const list = this.shadowRoot.querySelector('project-requests-list');
+      this._applyListStyles(size, list);
     }
     /**
      * Fired when navigation was requested
