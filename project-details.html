@@ -219,7 +219,7 @@ the License.
     </bottom-sheet>
 
     <bottom-sheet opened="{{_exportOptionsOpened}}" on-iron-overlay-opened="_resizeSheetContent">
-      <export-options file="{{_exportOptions.file}}" destination="{{_exportOptions.destination}}" drive="{{_exportOptions.drive}}" on-accept="_acceptExportOptions" on-cancel="_cancelExportOptions"></export-options>
+      <export-options file="{{_exportOptions.file}}" provider="{{_exportOptions.provider}}" provider-options="{{_exportOptions.providerOptions}}" on-accept="_acceptExportOptions" on-cancel="_cancelExportOptions"></export-options>
     </bottom-sheet>
 
     <paper-dialog id="projectDeleteDialog" on-iron-overlay-closed="_deleteDialogResult">
@@ -350,9 +350,9 @@ the License.
           value: function() {
             return {
               file: this._generateFileName(),
-              destination: 'file',
-              drive: {
-                parent: 'My Drive'
+              provider: 'file',
+              providerOptions: {
+                parents: ['My Drive']
               }
             };
           }
@@ -363,8 +363,7 @@ the License.
     static get observers() {
       return [
         '_cancelRequestLoading(loadingRequests, hasRequests)',
-        '_updateExportFile(project.name)',
-        // '_setupRequests(project)'
+        '_updateExportFile(project.name)'
       ];
     }
 
@@ -424,93 +423,6 @@ the License.
         this._setLoadingRequests(false);
       });
     }
-    // /**
-    //  * Called when project id changed
-    //  * @param {String} projectId Changed project ID
-    //  * @return {Promise} For tests, this function is called automatically on change.
-    //  */
-    // _projectIdChanged(projectId) {
-    //   if (this.editorOpened) {
-    //     this.editorOpened = false;
-    //   }
-    //   if (this.detailsOpened) {
-    //     this.detailsOpened = false;
-    //   }
-    //   if (!projectId) {
-    //     return;
-    //   }
-    //   const e = this._dispatchProjectRead(projectId);
-    //   if (!e.defaultPrevented) {
-    //     console.warn('project-read event not handled!');
-    //     return Promise.reject(new Error('no model'));
-    //   }
-    //   this._setLoadingProject(true);
-    //   return e.detail.result
-    //   .then((project) => {
-    //     this.set('project', project);
-    //     this._setLoadingProject(false);
-    //     return this._setupRequests(project);
-    //   })
-    //   .catch((cause) => {
-    //     this.$.modelError.text = cause.message;
-    //     this.$.modelError.opened = true;
-    //     console.warn(cause);
-    //     this._setLoadingProject(false);
-    //     this._setLoadingRequests(false);
-    //   });
-    // }
-    //
-    // _setupRequests(project) {
-    //   if (!project) {
-    //     return;
-    //   }
-    //   const e = this._dispatchRequestRead(project._id);
-    //   if (!e.defaultPrevented) {
-    //     console.warn('request-project-list event not handled!');
-    //     return;
-    //   }
-    //   const projectHasRequests = !!project.requests;
-    //   this._setLoadingRequests(true);
-    //   return e.detail.result
-    //   .then((requests) => {
-    //     if (!projectHasRequests) {
-    //       requests.sort(this._legacySort);
-    //     }
-    //     this.requests = requests;
-    //     this._setLoadingRequests(false);
-    //     if (!projectHasRequests) {
-    //       this._persistReorder();
-    //     }
-    //   })
-    //   .catch((cause) => {
-    //     this.$.modelError.text = cause.message;
-    //     this.$.modelError.opened = true;
-    //     console.warn(cause);
-    //     this._setLoadingRequests(false);
-    //   });
-    // }
-    // /**
-    //  * Sorts requests list by `projectOrder` property
-    //  *
-    //  * @param {Object} a
-    //  * @param {Object} b
-    //  * @return {Number}
-    //  */
-    // _legacySort(a, b) {
-    //   if (a.projectOrder > b.projectOrder) {
-    //     return 1;
-    //   }
-    //   if (a.projectOrder < b.projectOrder) {
-    //     return -1;
-    //   }
-    //   if (a.name > b.name) {
-    //     return 1;
-    //   }
-    //   if (a.name < b.name) {
-    //     return -1;
-    //   }
-    //   return 0;
-    // }
 
     _cancelRequestLoading(loadingRequests, hasRequests) {
       if (loadingRequests && hasRequests) {
@@ -655,78 +567,57 @@ the License.
       this._exportItems = undefined;
     }
 
-    _acceptExportOptions(e) {
-      const opts = e.detail;
-      console.log(opts);
-    }
-
     _onExport(e) {
       this._exportOptionsOpened = true;
       this._exportItems = e.detail.items || [];
     }
 
     _exportAllFile() {
-      this._doExportItems(this.requests, 'file');
+      const detail = {
+        options: {
+          file: this._generateFileName(),
+          kind: 'ARC#ProjectExport',
+          provider: 'file'
+        }
+      };
+      this._doExportItems(this.requests, detail);
+    }
+
+    _acceptExportOptions(e) {
+      const detail = e.detail;
+      return this._doExportItems(this._exportItems, detail);
     }
     /**
      * Dispatches the `export-data` event with relevant data.
      *
      * @param {Array} requests List of request to export with the project.
-     * @param {String} destination
+     * @param {String} detail Export configuration
      * @return {Promise}
      */
-    _doExportItems(requests, destination) {
-      destination = destination || 'file';
-      const e = this._dispatchExportData(destination, requests);
-      if (!e.defaultPrevented) {
-        this.$.noExport.opened = true;
-        return Promise.reject(new Error('No export module.'));
-      }
-      return e.detail.result
+    _doExportItems(requests, detail) {
+      detail.options.kind = 'ARC#ProjectExport';
+      const request = this._dispatchExportData(requests, detail);
+      return request.detail.result
       .then(() => {
-        if (destination === 'drive') {
+        if (detail.options.provider === 'drive') {
+          // TODO: Render link to the folder
           this.$.driveSaved.opened = true;
         }
+        this._exportItems = undefined;
       })
       .catch((cause) => {
-        if (!cause || !cause.message) {
-          return;
-        }
+        this.$.errorToast.text = cause.message;
+        this.$.errorToast.opened = true;
         console.warn(cause);
-        this.$.exportError.text = cause.message;
-        this.$.exportError.opened = true;
       });
-    }
-
-    _generateFileName() {
-      const project = this.project;
-      return (project ? project.name : 'arc-project-export') + '.json';
     }
     /**
-     * Dispatches `export-data` event and returns it.
-     * @param {String} destination A place where export the data (file, drive)
-     * @param {Array<Object>|Boolean} requests
-     * @return {CustomEvent}
+     * Generates export file name based on current project name.
+     * @return {String} File name for export.
      */
-    _dispatchExportData(destination, requests) {
-      const file = this._generateFileName();
-      const e = new CustomEvent('export-data', {
-        cancelable: true,
-        composed: true,
-        bubbles: true,
-        detail: {
-          type: 'arc-export',
-          destination,
-          file,
-          kind: 'ARC#ProjectExport',
-          data: {
-            projects: [this.project],
-            requests
-          }
-        }
-      });
-      this.dispatchEvent(e);
-      return e;
+    _generateFileName() {
+      const project = this.project;
+      return (project && project.name ? project.name : 'arc-project-export') + '.json';
     }
     /**
      * Handler for the list reorder event. Updates items order in the datastore.
