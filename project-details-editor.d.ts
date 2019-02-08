@@ -8,6 +8,9 @@
  *   project-details-editor.html
  */
 
+
+// tslint:disable:variable-name Describing an API that's defined elsewhere.
+
 /// <reference path="../polymer/types/polymer-element.d.ts" />
 /// <reference path="../paper-input/paper-input.d.ts" />
 /// <reference path="../paper-input/paper-textarea.d.ts" />

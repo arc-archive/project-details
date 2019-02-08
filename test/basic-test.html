@@ -339,89 +339,78 @@
         e.detail.result.catch(() => {});
       });
     });
+    suite('revertDeleted()', () => {
+      teardown(() => {
+        return DataGenerator.destroySavedRequestData();
+      });
+      let element;
+      let list;
+      setup(() => {
+        element = fixture('NoAuto');
+        list = [];
+        for (let i = 0; i < 5; i++) {
+          list[i] = {
+            _id: chance.guid({version: 5}),
+            _rev: chance.guid({version: 5})
+          };
+        }
+      });
 
-    // suite('revertDeleted()', () => {
-    //   teardown(() => {
-    //     return DataGenerator.destroySavedRequestData();
-    //   });
-    //
-    //   let element;
-    //   setup((done) => {
-    //     DataGenerator.insertSavedRequestData({
-    //       requestsSize: 5
-    //     })
-    //     .then(() => {
-    //       element = fixture('Basic');
-    //       element.addEventListener('loading-requests-changed', function f(e) {
-    //         if (e.detail.value) {
-    //           return;
-    //         }
-    //         element.removeEventListener('loading-requests-changed', f);
-    //         flush(() => done());
-    //       });
-    //     });
-    //   });
-    //
-    //   test('Do nothing when delete was not called before', function() {
-    //     return element.revertDeleted(); // no error is thrown
-    //   });
-    //
-    //   test('Closes delete confirmation toast', function() {
-    //     return element._delete(element.requests.slice(0, 2))
-    //     .then(() => {
-    //       const promise = element.revertDeleted();
-    //       assert.isFalse(element.$.deleteToast.opened);
-    //       return promise;
-    //     });
-    //   });
-    //
-    //   test('Dispatches request-objects-undeleted event', function() {
-    //     const spy = sinon.spy();
-    //     element.addEventListener('request-objects-undeleted', spy);
-    //     return element._delete(element.requests.slice(0, 2))
-    //     .then(() => {
-    //       const promise = element.revertDeleted();
-    //       assert.isTrue(spy.calledOnce);
-    //       return promise;
-    //     });
-    //   });
-    //
-    //   test('Undeleted restores items to the list', function() {
-    //     const deleted = [element.requests[2], element.requests[3]];
-    //     const sizeBefore = element.requests.length;
-    //     return element._delete(deleted)
-    //     .then(() => {
-    //       assert.notEqual(element.requests.length, sizeBefore);
-    //       return element.revertDeleted();
-    //     })
-    //     .then(() => {
-    //       assert.equal(element.requests.length, sizeBefore);
-    //     });
-    //   });
-    //
-    //   test('Opens model error toast if the event is not handled', function() {
-    //     element._latestDeleted = [{}];
-    //     element.addEventListener('request-objects-undeleted', function f(e) {
-    //       element.removeEventListener('request-objects-undeleted', f);
-    //       e.stopImmediatePropagation();
-    //     });
-    //     return element.revertDeleted()
-    //     .catch(() => {
-    //       const toast = element.shadowRoot.querySelector('#noModel');
-    //       assert.isTrue(toast.opened);
-    //     });
-    //   });
-    //
-    //   test('Opens revert error toast if there\'s an error', function() {
-    //     element._latestDeleted = [{}];
-    //     element._handleError = () => {};
-    //     return element.revertDeleted()
-    //     .catch(() => {
-    //       const toast = element.shadowRoot.querySelector('#revertError');
-    //       assert.isTrue(toast.opened);
-    //     });
-    //   });
-    // });
+      test('Does nothing when delete was not called before', function() {
+        return element.revertDeleted(); // no error is thrown
+      });
+
+      test('Closes delete confirmation toast', function() {
+        element.addEventListener('request-objects-undeleted', (e) => {
+          e.stopPropagation();
+        });
+        element._latestDeleted = list;
+        element.revertDeleted().catch(() => {});
+        assert.isFalse(element.$.deleteToast.opened);
+      });
+
+      test('Calls _dispatchUndelete() with list of requests', function() {
+        element.addEventListener('request-objects-undeleted', (e) => {
+          e.stopPropagation();
+        });
+        element._latestDeleted = list;
+        const spy = sinon.spy(element, '_dispatchUndelete');
+        element.revertDeleted().catch(() => {});
+        assert.isTrue(spy.called);
+      });
+
+      test('Opens error toast when no model', function() {
+        element.addEventListener('request-objects-undeleted', (e) => {
+          e.stopPropagation();
+        });
+        element._latestDeleted = list;
+        return element.revertDeleted().catch(() => {
+          assert.isTrue(element.$.noModel.opened);
+        });
+      });
+
+      test('Handles event sending', function() {
+        element.addEventListener('request-objects-undeleted', (e) => {
+          e.stopPropagation();
+          e.preventDefault();
+          e.detail.result = Promise.resolve();
+        });
+        element._latestDeleted = list;
+        return element.revertDeleted();
+      });
+
+      test('Opens revertError toast', () => {
+        element.addEventListener('request-objects-undeleted', (e) => {
+          e.stopPropagation();
+          e.preventDefault();
+          e.detail.result = Promise.reject(new Error('Test'));
+        });
+        element._latestDeleted = list;
+        return element.revertDeleted().then(() => {
+          assert.isTrue(element.$.revertError.opened);
+        });
+      });
+    });
 
     suite('_onOpen()', () => {
       let element;
@@ -624,6 +613,242 @@
         };
         const result = element._generateFileName();
         assert.equal(result, 'test-name.json');
+      });
+    });
+
+    suite('_onExport()', () => {
+      let element;
+      setup(function() {
+        element = fixture('NoAuto');
+      });
+
+      test('Sets _exportOptionsOpened', () => {
+        element._onExport({detail: {}});
+        assert.isTrue(element._exportOptionsOpened);
+      });
+
+      test('Sets _exportItems', () => {
+        const items = [{test: true}];
+        element._onExport({detail: {items}});
+        assert.deepEqual(element._exportItems, items);
+      });
+
+      test('Sets _exportItems as default value', () => {
+        element._onExport({detail: {}});
+        assert.deepEqual(element._exportItems, []);
+      });
+    });
+
+    suite('_deleteRequestDetails()', () => {
+      let request;
+      function handler(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        const items = e.detail.items;
+        const result = {};
+        items.forEach((id, index) => {
+          result[id] = 'rev-' + index;
+        });
+        e.detail.result = Promise.resolve(result);
+      }
+      let element;
+      setup(function() {
+        element = fixture('NoAuto');
+        request = DataGenerator.generateRequests({requestsSize: 1})[0];
+        element.addEventListener('request-objects-deleted', handler);
+      });
+
+      teardown(() => {
+        element.removeEventListener('request-objects-deleted', handler);
+      });
+
+      test('Closes details panel', () => {
+        element.$.requestDetails.request = request;
+        const result = element._deleteRequestDetails();
+        assert.isFalse(element.detailsOpened);
+        return result;
+      });
+
+      test('Calls _delete() with an argument', () => {
+        element.$.requestDetails.request = request;
+        const spy = sinon.spy(element, '_delete');
+        const result = element._deleteRequestDetails();
+        assert.deepEqual(spy.args[0][0], [request]);
+        return result;
+      });
+    });
+
+    suite('_updateDeletedRevs()', () => {
+      let requests;
+      let element;
+      setup(function() {
+        element = fixture('NoAuto');
+        requests = DataGenerator.generateRequests({requestsSize: 3});
+      });
+
+      test('Returns list of updates', () => {
+        const updates = {};
+        updates[requests[0]._id] = 'test-rev';
+        const result = element._updateDeletedRevs(requests, updates);
+        assert.lengthOf(result, 1);
+        assert.equal(result[0]._rev, 'test-rev');
+      });
+    });
+
+    suite('toggleEdit()', () => {
+      let element;
+      setup(function() {
+        element = fixture('NoAuto');
+      });
+
+      test('Toggles "edit" property', () => {
+        element.toggleEdit();
+        assert.isTrue(element.edit);
+      });
+
+      test('Calls _closeMainMenu()', () => {
+        const spy = sinon.spy(element, '_closeMainMenu');
+        element.toggleEdit();
+        assert.isTrue(spy.called);
+      });
+
+      test('_cancelEdit() cancels the edit', () => {
+        element.edit = true;
+        element._cancelEdit();
+        assert.isFalse(element.edit);
+      });
+    });
+
+    suite('_persistReorder()', () => {
+      let element;
+      setup(function() {
+        element = fixture('NoAuto');
+      });
+
+      test('Does nothing when no requests', () => {
+        const spy = sinon.spy(element, '_dispatchProjectUpdate');
+        element._persistReorder();
+        assert.isFalse(spy.called);
+      });
+
+      test('Does nothing when no project', () => {
+        element.requests = DataGenerator.generateRequests({requestsSize: 3});
+        const spy = sinon.spy(element, '_dispatchProjectUpdate');
+        element._persistReorder();
+        assert.isFalse(spy.called);
+      });
+
+      test('Does nothing when project requests has the same order', () => {
+        const requests = DataGenerator.generateRequests({requestsSize: 3});
+        element.requests = requests;
+        element.project = {
+          requests: requests.map((item) => item._id),
+          _id: 'test-id'
+        };
+        const spy = sinon.spy(element, '_dispatchProjectUpdate');
+        element._persistReorder();
+        assert.isFalse(spy.called);
+      });
+
+      test('Calls _dispatchProjectUpdate()', () => {
+        const requests = DataGenerator.generateRequests({requestsSize: 3});
+        element.requests = requests;
+        element.project = {
+          requests: [],
+          _id: 'test-id'
+        };
+        element.addEventListener('project-object-changed', function f(e) {
+          element.removeEventListener('project-object-changed', f);
+          e.stopPropagation();
+          e.preventDefault();
+          e.detail.result = Promise.resolve();
+        });
+        const spy = sinon.spy(element, '_dispatchProjectUpdate');
+        element._persistReorder();
+        assert.isTrue(spy.called);
+      });
+    });
+
+    suite('_requestIdsArrayEqual()', () => {
+      let element;
+      setup(function() {
+        element = fixture('NoAuto');
+      });
+      [
+        [null, null, true, 'both not set'],
+        [null, [], false, 'a1 is not defined'],
+        [[], null, false, 'a2 is not defined'],
+        [['a'], ['a'], true, 'are the same'],
+        [['a'], ['b'], false, 'id is different'],
+        [['a', 'b'], ['b'], false, 'length is different']
+      ].forEach((item) => {
+        test(`Returns ${item[2]} when ${item[3]}`, () => {
+          const result = element._requestIdsArrayEqual(item[0], item[1]);
+          assert.equal(result, item[2]);
+        });
+      });
+    });
+
+    suite('_updateListStyles()', () => {
+      let element;
+      setup(() => {
+        element = fixture('NoAuto');
+      });
+
+      test('Calls _applyListStyles() for default type', () => {
+        const spy = sinon.spy(element, '_applyListStyles');
+        element._updateListStyles('default');
+        assert.equal(spy.args[0][0], 56);
+        assert.ok(spy.args[0][1]);
+      });
+
+      test('Calls _applyListStyles() for comfortable type', () => {
+        const spy = sinon.spy(element, '_applyListStyles');
+        element._updateListStyles('comfortable');
+        assert.equal(spy.args[0][0], 40);
+        assert.ok(spy.args[0][1]);
+      });
+
+      test('Calls _applyListStyles() for compact type', () => {
+        const spy = sinon.spy(element, '_applyListStyles');
+        element._updateListStyles('compact');
+        assert.equal(spy.args[0][0], 36);
+        assert.ok(spy.args[0][1]);
+      });
+    });
+
+    suite('_updateRequest()', () => {
+      let element;
+      setup(() => {
+        element = fixture('NoAuto');
+      });
+
+      test('Rejects promise when not handled', () => {
+        element.addEventListener('request-object-changed', function f(e) {
+          element.removeEventListener('request-object-changed', f);
+          e.stopPropagation();
+        });
+        return element._updateRequest({_id: 'test-id'})
+        .then(() => {
+          throw new Error('Should not resolve');
+        })
+        .catch((cause) => {
+          assert.equal(cause.message, 'Model not found');
+        });
+      });
+
+      test('Resolves the promise', () => {
+        const updObj = {request: true};
+        element.addEventListener('request-object-changed', function f(e) {
+          element.removeEventListener('request-object-changed', f);
+          e.stopPropagation();
+          e.preventDefault();
+          e.detail.result = Promise.resolve(updObj);
+        });
+        return element._updateRequest({_id: 'test-id'})
+        .then((result) => {
+          assert.deepEqual(result, updObj);
+        });
       });
     });
     </script>

@@ -403,8 +403,8 @@ the License.
 
     _projectIdChanged(projectId) {
       this.project = undefined;
+      this.requests = undefined;
       if (!projectId) {
-        this.requests = undefined;
         return;
       }
       this._setLoadingProject(true);
@@ -479,19 +479,7 @@ the License.
         if (opts.skipRevert) {
           return;
         }
-        return Object.keys(updated)
-        .map((id) => {
-          let newRev = updated[id];
-          const len = delCopy.length;
-          for (let i = 0; i < len; i++) {
-            if (delCopy[i]._id === id) {
-              const item = delCopy[i];
-              item._rev = newRev;
-              return item;
-            }
-          }
-          throw new Error('Item not found');
-        });
+        return this._updateDeletedRevs(delCopy, updated);
       })
       .then((deleted) => {
         if (opts.skipRevert) {
@@ -507,6 +495,29 @@ the License.
         this.$.deleteToast.text = msg;
         this.$.deleteToast.opened = true;
       });
+    }
+    /**
+     * Updates `_rev` property after the item was deleted.
+     * @param {Array<Object>} deleted List of deleted requests to be updated.
+     * @param {Object} updateResult Request model response to delete request.
+     * @return {Array<Object>} List of requests with updated `_rev`
+     */
+    _updateDeletedRevs(deleted, updateResult) {
+      const result = [];
+      const keys = Object.keys(updateResult);
+      const delLen = deleted.length;
+      for (let i = 0, len = keys.length; i < len; i++) {
+        const id = keys[i];
+        let newRev = updateResult[id];
+        for (let j = 0; j < delLen; j++) {
+          if (deleted[j]._id === id) {
+            deleted[j]._rev = newRev;
+            result[result.length] = deleted[j];
+            break;
+          }
+        }
+      }
+      return result;
     }
     /**
      * Restores removed requests.
@@ -526,8 +537,9 @@ the License.
         return Promise.reject(new Error('Unable to revert. No model.'));
       }
       return e.detail.result
-      .catch(() => {
+      .catch((cause) => {
         this.$.revertError.opened = true;
+        console.warn(cause);
       });
     }
     /**
@@ -650,13 +662,37 @@ the License.
         return;
       }
       const newOrder = items.map((item) => item._id);
-      if (this.project.requests === newOrder) {
+      if (this._requestIdsArrayEqual(this.project.requests, newOrder)) {
         return;
       }
       this.project.requests = newOrder;
       this._dispatchProjectUpdate(this.project)
       .catch(() => this.$.reorderError.opened = true);
     }
+    /**
+     * Checks if 2 arrays of scalar items equals.
+     * @param {Array<String>} a1 First array
+     * @param {Array<String>} a2 Other array
+     * @return {Boolean}
+     */
+    _requestIdsArrayEqual(a1, a2) {
+      if (!a1 && !a2) {
+        return true;
+      }
+      if (!a1 || !a2) {
+        return false;
+      }
+      if (a1.length !== a2.length) {
+        return false;
+      }
+      for (let i = 0, len = a1.length; i < len; i++) {
+        if (a1[i] !== a2[i]) {
+          return false;
+        }
+      }
+      return true;
+    }
+
     // Updates requests in bulk opeartion.
     _updateBulk(items) {
       const promises = items.map((item) => this._updateRequest(item));
