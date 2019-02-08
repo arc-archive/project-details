@@ -30,7 +30,7 @@
     </test-fixture>
 
     <script>
-    /* global DataGenerator, chance, DataHelper */
+    /* global DataGenerator, chance */
     suite('Initialization', () => {
       suite('basic', function() {
         let element;
@@ -423,369 +423,6 @@
     //   });
     // });
 
-    suite('_projectChanged()', () => {
-      let element;
-      let projectId;
-      let projects;
-      suiteSetup(function() {
-        return DataHelper.generateData()
-        .then((result) => {
-          projectId = result.projectId;
-          projects = result.projects;
-        });
-      });
-
-      suiteTeardown(function() {
-        return DataGenerator.destroySavedRequestData();
-      });
-
-      setup(function() {
-        element = fixture('NoAuto');
-      });
-
-      test('Closes the editor', () => {
-        element.editorOpened = true;
-        element._projectChanged();
-        assert.isFalse(element.editorOpened);
-      });
-
-      test('Closes the details', () => {
-        element.detailsOpened = true;
-        element._projectChanged();
-        assert.isFalse(element.detailsOpened);
-      });
-
-      test('Does nothing when no ID', () => {
-        const result = element._projectChanged();
-        assert.isUndefined(result);
-      });
-
-      test('Returns a Promise', () => {
-        const result = element._projectChanged(projectId);
-        assert.typeOf(result.then, 'function');
-        return result;
-      });
-
-      test('Sets loadingProject', () => {
-        const result = element._projectChanged(projectId);
-        assert.isTrue(element.loadingProject);
-        return result;
-      });
-
-      test('Calls _dispatchProjectRead() with argument', () => {
-        const spy = sinon.spy(element, '_dispatchProjectRead');
-        const result = element._projectChanged(projectId);
-        assert.isTrue(spy.called);
-        assert.equal(spy.args[0][0], projectId);
-        return result;
-      });
-
-      test('Calls _setupRequests() with argument', () => {
-        const spy = sinon.spy(element, '_setupRequests');
-        return element._projectChanged(projectId)
-        .then(() => {
-          assert.isTrue(spy.called);
-          assert.equal(spy.args[0][0]._id, projectId);
-        });
-      });
-
-      test('Resets loadingProject', () => {
-        return element._projectChanged(projects[1]._id)
-        .then(() => {
-          assert.isFalse(element.loadingProject);
-        });
-      });
-
-      test('Resets loadingRequests', () => {
-        return element._projectChanged(projects[1]._id)
-        .then(() => {
-          assert.isFalse(element.loadingRequests);
-        });
-      });
-
-      test('Opens modelError on error', () => {
-        element.addEventListener('project-read', function f(e) {
-          element.removeEventListener('project-read', f);
-          e.preventDefault();
-          e.stopPropagation();
-          e.detail.result = Promise.reject(new Error('test-error'));
-        });
-        return element._projectChanged(projects[1]._id)
-        .then(() => {
-          assert.equal(element.$.modelError.text, 'test-error');
-          assert.isTrue(element.$.modelError.opened);
-        });
-      });
-
-      test('Resets loading flags on error', () => {
-        element.addEventListener('project-read', function f(e) {
-          element.removeEventListener('project-read', f);
-          e.preventDefault();
-          e.stopPropagation();
-          e.detail.result = Promise.reject(new Error('test-error'));
-        });
-        return element._projectChanged(projects[1]._id)
-        .then(() => {
-          assert.isFalse(element.loadingProject, 'Project flag is reset');
-          assert.isFalse(element.loadingRequests, 'Request flag is reset');
-        });
-      });
-    });
-
-    suite('_setupRequests()', () => {
-      let element;
-      let projects;
-      suiteSetup(function() {
-        return DataHelper.generateData()
-        .then((result) => {
-          projects = result.projects;
-        });
-      });
-
-      suiteTeardown(function() {
-        return DataGenerator.destroySavedRequestData();
-      });
-
-      setup(function() {
-        element = fixture('NoAuto');
-      });
-
-      test('Dispatches _dispatchRequestRead()', () => {
-        const spy = sinon.spy(element, '_dispatchRequestRead');
-        const result = element._setupRequests(projects[0]);
-        assert.isTrue(spy.called);
-        assert.equal(spy.args[0][0], projects[0]._id);
-        return result;
-      });
-
-      test('Sets loadingRequests', () => {
-        const result = element._setupRequests(projects[0]);
-        assert.isTrue(element.loadingRequests);
-        return result;
-      });
-
-      test('Sets "requests" array', () => {
-        return element._setupRequests(projects[0])
-        .then(() => {
-          assert.typeOf(element.requests, 'array');
-          assert.lengthOf(element.requests, projects[0].requests.length);
-        });
-      });
-
-      test('Resets loadingRequests state', () => {
-        return element._setupRequests(projects[0])
-        .then(() => {
-          assert.isFalse(element.loadingRequests);
-        });
-      });
-
-      test('Calls _legacySort()', () => {
-        const copy = Object.assign({}, projects[0]);
-        delete copy.requests;
-        const spy = sinon.spy(element, '_legacySort');
-        return element._setupRequests(copy)
-        .then(() => {
-          assert.isTrue(spy.called);
-        });
-      });
-
-      test('Calls _persistReorder()', () => {
-        const copy = Object.assign({}, projects[0]);
-        delete copy.requests;
-        const spy = sinon.spy(element, '_persistReorder');
-        return element._setupRequests(copy)
-        .then(() => {
-          assert.isTrue(spy.called);
-        });
-      });
-
-      test('Opens modelError on error', () => {
-        element.addEventListener('request-project-list', function f(e) {
-          element.removeEventListener('request-project-list', f);
-          e.preventDefault();
-          e.stopPropagation();
-          e.detail.result = Promise.reject(new Error('test-error'));
-        });
-        return element._setupRequests(projects[0])
-        .then(() => {
-          assert.equal(element.$.modelError.text, 'test-error');
-          assert.isTrue(element.$.modelError.opened);
-        });
-      });
-
-      test('Resets loading flags on error', () => {
-        element.addEventListener('request-project-list', function f(e) {
-          element.removeEventListener('request-project-list', f);
-          e.preventDefault();
-          e.stopPropagation();
-          e.detail.result = Promise.reject(new Error('test-error'));
-        });
-        return element._setupRequests(projects[0])
-        .then(() => {
-          assert.isFalse(element.loadingRequests, 'Request flag is reset');
-        });
-      });
-    });
-
-    suite('_isProjectRequest()', () => {
-      let element;
-      setup(function() {
-        element = fixture('NoAuto');
-        element.projectId = 'test-id';
-      });
-
-      test('Return false when no projectId', () => {
-        element.projectId = undefined;
-        const result = element._isProjectRequest({
-          projects: ['test-id']
-        });
-        assert.isFalse(result);
-      });
-
-      test('Return true when project is in request\'s projects list', () => {
-        const result = element._isProjectRequest({
-          projects: ['test-id']
-        });
-        assert.isTrue(result);
-      });
-
-      test('Return true when project is a legacyProject', () => {
-        const result = element._isProjectRequest({
-          legacyProject: 'test-id'
-        });
-        assert.isTrue(result);
-      });
-
-      test('Return false when not on the list', () => {
-        const result = element._isProjectRequest({
-          projects: ['other']
-        });
-        assert.isFalse(result);
-      });
-
-      test('Return false when not legacy project', () => {
-        const result = element._isProjectRequest({
-          legacyProject: 'other'
-        });
-        assert.isFalse(result);
-      });
-    });
-
-    suite('_requestChangedHandler()', () => {
-      let element;
-      let projectId;
-      suiteSetup(function() {
-        return DataHelper.generateData()
-        .then((result) => {
-          projectId = result.projectId;
-        });
-      });
-
-      suiteTeardown(function() {
-        return DataGenerator.destroySavedRequestData();
-      });
-
-      let request;
-      setup(function() {
-        element = fixture('NoAuto');
-        element.projectId = projectId;
-        request = {
-          _id: 'test-request-' + Date.now(),
-          name: 'test',
-          url: 'http://domain.com',
-          method: 'GET',
-          type: 'saved'
-        };
-        return DataHelper.doneWhenLoaded(element);
-      });
-
-      function fire(request, cancelable) {
-        if (cancelable === undefined) {
-          cancelable = false;
-        }
-        const e = new CustomEvent('request-object-changed', {
-          bubbles: true,
-          cancelable,
-          detail: {
-            request,
-            type: request.type
-          }
-        });
-        document.body.dispatchEvent(e);
-      }
-
-      test('Does nothing when no projectId', () => {
-        element.requests = undefined;
-        element.projectId = undefined;
-        fire(request);
-        assert.isUndefined(element.requests);
-      });
-
-      test('Does nothing when event is cancelable', () => {
-        element.requests = undefined;
-        fire(request, true);
-        assert.isUndefined(element.requests);
-      });
-
-      test('Creates requests array', () => {
-        element.requests = undefined;
-        request.projects = [projectId];
-        fire(request);
-        assert.typeOf(element.requests, 'array');
-        assert.deepEqual(element.requests[0], request);
-      });
-
-      test('Respects legacyProject', () => {
-        element.requests = undefined;
-        request.legacyProject = projectId;
-        fire(request);
-        assert.typeOf(element.requests, 'array');
-        assert.deepEqual(element.requests[0], request);
-      });
-
-      test('Ignores request from different project (legacy)', () => {
-        element.requests = undefined;
-        request.legacyProject = 'other-id';
-        fire(request);
-        assert.isUndefined(element.requests);
-      });
-
-      test('Ignores request from different project (current)', () => {
-        element.requests = undefined;
-        request.projects = ['other-id'];
-        fire(request);
-        assert.isUndefined(element.requests);
-      });
-
-      test('Addes new request to the list (current)', () => {
-        request.projects = [projectId];
-        fire(request);
-        const result = element.requests[element.requests.length - 1];
-        assert.deepEqual(result, request);
-      });
-
-      test('Addes new request to the list (legacy)', () => {
-        request.legacyProject = projectId;
-        fire(request);
-        const result = element.requests[element.requests.length - 1];
-        assert.deepEqual(result, request);
-      });
-
-      test('Updates a request', () => {
-        const copy = Object.assign({}, element.requests[0]);
-        copy.name = 'test-name';
-        fire(copy);
-        assert.equal(element.requests[0].name, 'test-name');
-      });
-
-      test('Removes a request if it no longer belongs to the project', () => {
-        const copy = Object.assign({}, element.requests[0]);
-        delete copy.projects;
-        fire(copy);
-        assert.notEqual(element.requests[0]._id, copy._id);
-      });
-    });
-
     suite('_onOpen()', () => {
       let element;
       setup(function() {
@@ -826,6 +463,167 @@
         });
         assert.isTrue(spy.called);
         assert.deepEqual(spy.args[0][0], items);
+      });
+    });
+
+    suite('openExportAll()', () => {
+      let element;
+      setup(() => {
+        element = fixture('Basic');
+      });
+
+      test('Calls _closeMainMenu()', () => {
+        const spy = sinon.spy(element, '_closeMainMenu');
+        element.openExportAll();
+        assert.isTrue(spy.called);
+      });
+
+      test('Sets _exportOptionsOpened', () => {
+        element.openExportAll();
+        assert.isTrue(element._exportOptionsOpened);
+      });
+
+      test('Sets _exportItems', () => {
+        const items = [{test: true}];
+        element.requests = items;
+        element.openExportAll();
+        assert.deepEqual(element._exportItems, items);
+      });
+    });
+
+    suite('_cancelExportOptions()', () => {
+      let element;
+      setup(() => {
+        element = fixture('Basic');
+        element._exportOptionsOpened = true;
+        element._exportItems = true;
+      });
+
+      test('Sets _exportOptionsOpened', () => {
+        element._cancelExportOptions();
+        assert.isFalse(element._exportOptionsOpened);
+      });
+
+      test('Sets _exportItems', () => {
+        element._cancelExportOptions();
+        assert.isUndefined(element._exportItems);
+      });
+    });
+
+    suite('_exportAllFile()', () => {
+      function handler(e) {
+        e.preventDefault();
+        e.detail.result = Promise.resolve();
+      }
+
+      let element;
+      setup(() => {
+        element = fixture('Basic');
+        window.addEventListener('arc-data-export', handler);
+      });
+
+      teardown(() => {
+        window.removeEventListener('arc-data-export', handler);
+      });
+
+      test('Calls _doExportItems()', () => {
+        const spy = sinon.spy(element, '_doExportItems');
+        const result = element._exportAllFile();
+        assert.isTrue(spy.called);
+        return result;
+      });
+
+      test('First argument is true', () => {
+        const spy = sinon.spy(element, '_doExportItems');
+        const result = element._exportAllFile();
+        assert.isTrue(spy.args[0][0]);
+        return result;
+      });
+
+      test('Second argument has options', () => {
+        const spy = sinon.spy(element, '_doExportItems');
+        const result = element._exportAllFile();
+        assert.typeOf(spy.args[0][1].options, 'object');
+        return result;
+      });
+
+      test('Options has file', () => {
+        const spy = sinon.spy(element, '_doExportItems');
+        const result = element._exportAllFile();
+        assert.equal(spy.args[0][1].options.file, element._generateFileName());
+        return result;
+      });
+
+      test('Options has kind', () => {
+        const spy = sinon.spy(element, '_doExportItems');
+        const result = element._exportAllFile();
+        assert.equal(spy.args[0][1].options.kind, 'ARC#ProjectExport');
+        return result;
+      });
+
+      test('Options has provider', () => {
+        const spy = sinon.spy(element, '_doExportItems');
+        const result = element._exportAllFile();
+        assert.equal(spy.args[0][1].options.provider, 'file');
+        return result;
+      });
+    });
+
+    suite('_acceptExportOptions()', () => {
+      function handler(e) {
+        e.preventDefault();
+        e.detail.result = Promise.resolve();
+      }
+
+      let element;
+      setup(() => {
+        element = fixture('Basic');
+        window.addEventListener('arc-data-export', handler);
+      });
+
+      teardown(() => {
+        window.removeEventListener('arc-data-export', handler);
+      });
+
+      test('Sets _exportOptionsOpened', () => {
+        const result = element._acceptExportOptions({
+          detail: {
+            options: {}
+          }
+        });
+        assert.isFalse(element._exportOptionsOpened);
+        return result;
+      });
+
+      test('Calls _doExportItems()', () => {
+        const spy = sinon.spy(element, '_doExportItems');
+        const result = element._acceptExportOptions({
+          detail: {
+            options: {}
+          }
+        });
+        assert.isTrue(spy.called);
+        return result;
+      });
+    });
+
+    suite('_generateFileName()', () => {
+      let element;
+      setup(function() {
+        element = fixture('NoAuto');
+      });
+
+      test('Returns default name when no project', () => {
+        const result = element._generateFileName();
+        assert.equal(result, 'arc-project-export.json');
+      });
+
+      test('Returns project name', () => {
+        element.project = {
+          name: 'test name'
+        };
+        const result = element._generateFileName();
+        assert.equal(result, 'test-name.json');
       });
     });
     </script>

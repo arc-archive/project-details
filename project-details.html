@@ -159,7 +159,7 @@ the License.
         <paper-icon-button slot="dropdown-trigger" icon="arc:more-vert"></paper-icon-button>
         <paper-listbox slot="dropdown-content" id="contextMenu">
           <paper-icon-item class="menu-item" on-click="toggleEdit"><iron-icon icon="arc:edit" slot="item-icon"></iron-icon>Edit</paper-icon-item>
-          <paper-icon-item class="menu-item" on-click="toggleExportAll"><iron-icon icon="arc:export-variant" slot="item-icon"></iron-icon>Export project</paper-icon-item>
+          <paper-icon-item class="menu-item" on-click="openExportAll"><iron-icon icon="arc:export-variant" slot="item-icon"></iron-icon>Export project</paper-icon-item>
           <paper-icon-item class="menu-item" on-click="_deleteProject"><iron-icon icon="arc:clear" slot="item-icon"></iron-icon>Delete</paper-icon-item>
         </paper-listbox>
       </paper-menu-button>
@@ -227,7 +227,7 @@ the License.
       <p>This will remove the project and all request data associated with the project.</p>
       <p>Maybe you should create a backup first?</p>
       <div class="buttons">
-        <paper-button on-click="_exportAllFile">Create file backup</paper-button>
+        <paper-button on-click="_exportAllFile">Create backup file</paper-button>
         <paper-button dialog-dismiss autofocus>Cancel</paper-button>
         <paper-button dialog-confirm class="action-button">Destroy</paper-button>
       </div>
@@ -549,7 +549,9 @@ the License.
       this.dispatchEvent(e);
       return e;
     }
-
+    /**
+     * Forces main menu to close.
+     */
     _closeMainMenu() {
       this.$.contextMenu.selected = -1;
       this.$.contextMenu.parentElement.opened = false;
@@ -557,7 +559,8 @@ the License.
     /**
      * Toggles export options panel and sets export items to all currently loaded requests.
      */
-    toggleExportAll() {
+    openExportAll() {
+      this._closeMainMenu();
       this._exportOptionsOpened = !this._exportOptionsOpened;
       this._exportItems = this.requests || [];
     }
@@ -571,7 +574,10 @@ the License.
       this._exportOptionsOpened = true;
       this._exportItems = e.detail.items || [];
     }
-
+    /**
+     * Creates export file for all items.
+     * @return {Promise} Result of calling `_doExportItems()`
+     */
     _exportAllFile() {
       const detail = {
         options: {
@@ -580,17 +586,23 @@ the License.
           provider: 'file'
         }
       };
-      this._doExportItems(this.requests, detail);
+      return this._doExportItems(true, detail);
     }
-
+    /**
+     * Handler for `accept` event dispatched by export options element.
+     * @param {CustomEvent} e
+     * @return {Promise} Result of calling `_doExportItems()`
+     */
     _acceptExportOptions(e) {
+      this._exportOptionsOpened = false;
       const detail = e.detail;
       return this._doExportItems(this._exportItems, detail);
     }
     /**
-     * Dispatches the `export-data` event with relevant data.
+     * Calls `_dispatchExportData()` from requests lists mixin with
+     * prepared arguments
      *
-     * @param {Array} requests List of request to export with the project.
+     * @param {Array<Object>} requests List of request to export with the project.
      * @param {String} detail Export configuration
      * @return {Promise}
      */
@@ -617,7 +629,17 @@ the License.
      */
     _generateFileName() {
       const project = this.project;
-      return (project && project.name ? project.name : 'arc-project-export') + '.json';
+      let name = project && project.name;
+      if (!name) {
+        name = 'arc-project-export.json';
+      } else {
+        name = name.toLowerCase().replace(/\s/g, '-');
+        if (name[name.length - 1] !== '.') {
+          name += '.';
+        }
+        name += 'json';
+      }
+      return name;
     }
     /**
      * Handler for the list reorder event. Updates items order in the datastore.
@@ -869,17 +891,8 @@ the License.
       this.$.requestEditor.request = undefined;
     }
 
-    _updateExportFile(name) {
-      if (!name) {
-        name = 'arc-project-export.json';
-      } else {
-        name = name.toLowerCase().replace(/\s/g, '-');
-        if (name[name.length - 1] !== '.') {
-          name += '.';
-        }
-        name += 'json';
-      }
-      this.set('_exportOptions.file', name);
+    _updateExportFile() {
+      this.set('_exportOptions.file', this._generateFileName());
     }
     /**
      * Updates icon size CSS variable and notifies resize on the list when
