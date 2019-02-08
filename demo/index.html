@@ -93,13 +93,20 @@
         </nav>
         <section class="main">
           <section class="card centered options">
-            <h2>Data options</h2>
+            <h2>Setup options</h2>
             <paper-button on-click="genData">Generate data</paper-button>
             <paper-button on-click="deleteData">Destroy data</paper-button>
+            <paper-dropdown-menu label="Select list type">
+              <paper-listbox slot="dropdown-content" attr-for-selected="data-value" selected="{{listType}}">
+                <paper-item data-value="default">Default</paper-item>
+                <paper-item data-value="comfortable">Comfortable</paper-item>
+                <paper-item data-value="compact">Compact</paper-item>
+              </paper-listbox>
+            </paper-dropdown-menu>
           </section>
 
           <div class="card vertical-section-container centered">
-            <project-details></project-details>
+            <project-details list-type="[[listType]]"></project-details>
           </div>
         </section>
       </div>
@@ -138,24 +145,7 @@
       });
     };
     scope.deleteData = function() {
-      /* global RequestDb */
-      const indexer = new RequestDb();
-      return indexer.openSearchStore()
-      .then((db) => {
-        return new Promise((resolve, reject) => {
-          const tx = db.transaction('urls', 'readwrite');
-          const store = tx.objectStore('urls');
-          const results = [];
-          tx.onerror = () => {
-            reject(results);
-          };
-          tx.oncomplete = () => {
-            resolve(results);
-          };
-          store.clear();
-        });
-      })
-      .then(() => DataGenerator.destroySavedRequestData())
+      DataGenerator.destroySavedRequestData()
       .then(() => {
         document.getElementById('deleteOk').opened = true;
       });

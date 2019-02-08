@@ -4,7 +4,7 @@
   "license": "Apache-2.0",
   "description": "A project details panel for the Advanced REST Client",
   "devDependencies": {
-    "@polymer/gen-typescript-declarations": "^1.5.1"
+    "@polymer/gen-typescript-declarations": "^1.6.1"
   },
   "private": false,
   "main": "project-details.html",

@@ -65,7 +65,9 @@ the License.
    * @demo demo/index.html
    */
   class ProjectDetailsEditor extends Polymer.Element {
-    static get is() { return 'project-details-editor'; }
+    static get is() {
+      return 'project-details-editor';
+    }
     static get properties() {
       return {
         /**
@@ -82,9 +84,7 @@ the License.
      * Sends the `cancel-edit` custom event to the parent element.
      */
     cancel() {
-      this.dispatchEvent(new CustomEvent('cancel-edit', {
-        composed: true
-      }));
+      this.dispatchEvent(new CustomEvent('cancel-edit'));
     }
     /**
      * Sends the `save-edit` custom event to the parent element.
@@ -96,7 +96,6 @@ the License.
         return;
       }
       this.dispatchEvent(new CustomEvent('save-edit', {
-        composed: true,
         detail: {
           name: this.name,
           description: this.description

@@ -13,6 +13,7 @@ the License.
 -->
 <link rel="import" href="../polymer/polymer-element.html">
 <link rel="import" href="../project-requests-list/project-requests-list.html">
+<link rel="import" href="../requests-list-mixin/requests-list-mixin.html">
 <link rel="import" href="../paper-toast/paper-toast.html">
 <link rel="import" href="../paper-button/paper-button.html">
 <link rel="import" href="../paper-icon-button/paper-icon-button.html">
@@ -27,6 +28,7 @@ the License.
 <link rel="import" href="../paper-fab/paper-fab.html">
 <link rel="import" href="../marked-element/marked-element.html">
 <link rel="import" href="../markdown-styles/markdown-styles.html">
+<link rel="import" href="../export-options/export-options.html">
 <link rel="import" href="../paper-styles/shadow.html">
 <link rel="import" href="project-details-editor.html">
 <dom-module id="project-details">
@@ -37,6 +39,10 @@ the License.
       display: block;
       @apply --arc-font-body1;
       @apply --project-details;
+    }
+
+    [hidden] {
+      display: none !important;
     }
 
     .revert-button {
@@ -52,36 +58,33 @@ the License.
     h2 {
       @apply --arc-font-headline;
       display: inline-block;
-      margin-left: 16px;
     }
 
     h3 {
       @apply --arc-font-subhead;
-      margin-left: 16px;
     }
 
-    paper-listbox iron-icon {
+    .menu-item iron-icon {
       color: var(--context-menu-item-color);
     }
 
-    paper-listbox paper-icon-item {
+    .menu-item {
       color: var(--context-menu-item-color);
       background-color: var(--context-menu-item-background-color);
       cursor: pointer;
     }
 
-    paper-listbox paper-icon-item:hover {
+    .menu-item:hover {
       color: var(--context-menu-item-color-hover);
       background-color: var(--context-menu-item-background-color-hover);
     }
 
-    paper-listbox paper-icon-item:hover iron-icon {
+    .menu-item:hover iron-icon {
       color: var(--context-menu-item-color-hover);
     }
 
     .description {
       margin-bottom: 24px;
-      margin-left: 16px;
       @apply --project-details-description-container;
     }
 
@@ -106,8 +109,13 @@ the License.
       color: #fff;
     }
 
-    project-details-editor {
-      margin: 0 16px 24px 16px;
+    project-details-editor,
+    .export-options-form {
+      margin: 0 16px 24px 0px;
+    }
+
+    .export-options-form {
+      margin-bottom: 0;
     }
 
     bottom-sheet {
@@ -150,10 +158,9 @@ the License.
       <paper-menu-button>
         <paper-icon-button slot="dropdown-trigger" icon="arc:more-vert"></paper-icon-button>
         <paper-listbox slot="dropdown-content" id="contextMenu">
-          <paper-icon-item on-click="toggleEdit"><iron-icon icon="arc:edit" slot="item-icon"></iron-icon>Edit</paper-icon-item>
-          <paper-icon-item on-click="_onExportAll"><iron-icon icon="arc:archive" slot="item-icon"></iron-icon>Export to file</paper-icon-item>
-          <paper-icon-item on-click="_onExportAllDrive"><iron-icon icon="arc:drive-color" slot="item-icon"></iron-icon>Export to Google Drive</paper-icon-item>
-          <paper-icon-item on-click="_deleteProject"><iron-icon icon="arc:clear" slot="item-icon"></iron-icon>Delete</paper-icon-item>
+          <paper-icon-item class="menu-item" on-click="toggleEdit"><iron-icon icon="arc:edit" slot="item-icon"></iron-icon>Edit</paper-icon-item>
+          <paper-icon-item class="menu-item" on-click="openExportAll"><iron-icon icon="arc:export-variant" slot="item-icon"></iron-icon>Export project</paper-icon-item>
+          <paper-icon-item class="menu-item" on-click="_deleteProject"><iron-icon icon="arc:clear" slot="item-icon"></iron-icon>Delete</paper-icon-item>
         </paper-listbox>
       </paper-menu-button>
     </div>
@@ -168,18 +175,20 @@ the License.
       </template>
     </div>
 
-    <template is="dom-if" if="[[hasRequests]]">
+    <div hidden$="[[!hasRequests]]">
       <h3>Requests ([[requests.length]])</h3>
       <project-requests-list
-        items="[[requests]]"
+        requests="[[requests]]"
         on-list-items-delete="_onDelete"
         on-list-item-open="_onOpen"
         on-list-items-export="_onExport"
         on-dom-order-changed="_persistReorder"
-        on-list-item-details="_onDetails"></project-requests-list>
-    </template>
+        on-list-item-details="_onDetails"
+        list-type$="[[listType]]"
+        two-lines="[[_hasTwoLines]]"></project-requests-list>
+    </div>
     <template is="dom-if" if="[[!hasRequests]]">
-      <p>This project has no requests. <paper-button on-click="_deleteEmpty" class="primary-button" raised>Delete project</paper-button></p>
+      <p class="no-requests">This project has no requests. <paper-button on-click="_deleteEmpty" class="primary-button" raised>Delete project</paper-button></p>
     </template>
 
     <paper-toast id="noModel" class="error-toast" text="Model not found. Please, report an issue."></paper-toast>
@@ -201,7 +210,7 @@ the License.
     </bottom-sheet>
 
     <bottom-sheet opened="{{editorOpened}}" on-iron-overlay-opened="_resizeSheetContent">
-      <saved-request-editor id="requestEditor" no-auto-projects="[[noAutoProjects]]" on-cancel-request-edit="_cancelRequestEdit" on-save-request="_saveRequestEdit"></saved-request-detail>
+      <saved-request-editor id="requestEditor" no-auto-projects="[[noAutoProjects]]" on-cancel-request-edit="_cancelRequestEdit" on-save-request="_saveRequestEdit"></saved-request-editor>
     </bottom-sheet>
 
     <bottom-sheet opened="{{edit}}" on-iron-overlay-opened="_resizeSheetContent">
@@ -209,12 +218,16 @@ the License.
       <project-details-editor name="[[project.name]]" description="[[project.description]]" on-cancel-edit="_cancelEdit" on-save-edit="_saveEdit"></project-details-editor>
     </bottom-sheet>
 
+    <bottom-sheet opened="{{_exportOptionsOpened}}" on-iron-overlay-opened="_resizeSheetContent">
+      <export-options file="{{_exportOptions.file}}" provider="{{_exportOptions.provider}}" provider-options="{{_exportOptions.providerOptions}}" on-accept="_acceptExportOptions" on-cancel="_cancelExportOptions"></export-options>
+    </bottom-sheet>
+
     <paper-dialog id="projectDeleteDialog" on-iron-overlay-closed="_deleteDialogResult">
       <h2>Danger zone</h2>
       <p>This will remove the project and all request data associated with the project.</p>
       <p>Maybe you should create a backup first?</p>
       <div class="buttons">
-        <paper-button on-click="_onExportAll">Create file backup</paper-button>
+        <paper-button on-click="_exportAllFile">Create backup file</paper-button>
         <paper-button dialog-dismiss autofocus>Cancel</paper-button>
         <paper-button dialog-confirm class="action-button">Destroy</paper-button>
       </div>
@@ -279,8 +292,9 @@ the License.
    * @customElement
    * @memberof UiElements
    * @demo demo/index.html
+   * @appliesMixin ArcComponents.RequestsListMixin
    */
-  class ProjectDetails extends Polymer.Element {
+  class ProjectDetails extends ArcComponents.RequestsListMixin(Polymer.Element) {
     static get is() {
       return 'project-details';
     }
@@ -291,17 +305,8 @@ the License.
          */
         projectId: {
           type: String,
-          observer: '_projectChanged'
+          observer: '_projectIdChanged'
         },
-        /**
-         * List of requests to display.
-         * This list is computed when the `projectId` changes
-         */
-        requests: Array,
-        /**
-         * Project data restored from the datastore.
-         */
-        project: Object,
         /**
          * Set to true to enable project editor.
          */
@@ -321,14 +326,6 @@ the License.
           notify: true,
           readOnly: true
         },
-        /**
-         * Computed value, true when the project has requests.
-         */
-        hasRequests: {
-          type: Boolean,
-          value: false,
-          computed: '_computeHasRequests(requests.length)'
-        },
         // List of requests that has been recently removed
         _latestDeleted: Array,
         /**
@@ -343,218 +340,88 @@ the License.
          * When set the element won't request projects list when attached to the dom.
          * This is passed to the request editor.
          */
-        noAutoProjects: Boolean
+        noAutoProjects: Boolean,
+        /**
+         * Indicates that the export options panel is currently rendered.
+         */
+        _exportOptionsOpened: Boolean,
+        _exportOptions: {
+          type: Object,
+          value: function() {
+            return {
+              file: this._generateFileName(),
+              provider: 'file',
+              providerOptions: {
+                parents: ['My Drive']
+              }
+            };
+          }
+        }
       };
     }
 
     static get observers() {
       return [
-        '_cancelRequestLoading(loadingRequests, hasRequests)'
+        '_cancelRequestLoading(loadingRequests, hasRequests)',
+        '_updateExportFile(project.name)'
       ];
     }
 
     constructor() {
       super();
-      this._projectDataChanged = this._projectDataChanged.bind(this);
       this._projectDeleteHandler = this._projectDeleteHandler.bind(this);
-      this._requestDeletedHandler = this._requestDeletedHandler.bind(this);
-      this._requestChangedHandler = this._requestChangedHandler.bind(this);
     }
 
     connectedCallback() {
       super.connectedCallback();
-      window.addEventListener('project-object-changed', this._projectDataChanged);
+      if (!this.type) {
+        this.type = 'project';
+      }
       window.addEventListener('project-object-deleted', this._projectDeleteHandler);
-      window.addEventListener('request-object-deleted', this._requestDeletedHandler);
-      window.addEventListener('request-object-changed', this._requestChangedHandler);
     }
 
     disconnectedCallback() {
       super.disconnectedCallback();
-      window.removeEventListener('project-object-changed', this._projectDataChanged);
       window.removeEventListener('project-object-deleted', this._projectDeleteHandler);
-      window.removeEventListener('request-object-deleted', this._requestDeletedHandler);
-      window.removeEventListener('request-object-changed', this._requestChangedHandler);
     }
 
     _navigate(detail) {
-      const e = new CustomEvent('navigate', {
-        bubbles: true,
-        composed: true,
-        detail
-      });
-      this.dispatchEvent(e);
-      return e;
+      return this._dispatch('navigate', detail);
     }
 
     _dispatchProjectRead(id) {
-      const e = new CustomEvent('project-read', {
-        bubbles: true,
-        cancelable: true,
-        composed: true,
-        detail: {
-          id
-        }
+      return this._dispatch('project-read', {
+        id
       });
-      this.dispatchEvent(e);
-      return e;
     }
 
     _dispatchRequestRead(id) {
-      const e = new CustomEvent('request-project-list', {
-        bubbles: true,
-        cancelable: true,
-        composed: true,
-        detail: {
-          id
-        }
+      return this._dispatch('request-project-list', {
+        id
       });
-      this.dispatchEvent(e);
-      return e;
     }
-    /**
-     * Called when project id changed
-     * @param {String} projectId Changed project ID
-     * @return {Promise} For tests, this function is called automatically on change.
-     */
-    _projectChanged(projectId) {
-      if (this.editorOpened) {
-        this.editorOpened = false;
-      }
-      if (this.detailsOpened) {
-        this.detailsOpened = false;
-      }
+
+    _projectIdChanged(projectId) {
+      this.project = undefined;
+      this.requests = undefined;
       if (!projectId) {
         return;
-      }
-      const e = this._dispatchProjectRead(projectId);
-      if (!e.defaultPrevented) {
-        console.warn('project-read event not handled!');
-        return Promise.reject(new Error('no model'));
       }
       this._setLoadingProject(true);
-      return e.detail.result
-      .then((project) => {
-        this.set('project', project);
-        this._setLoadingProject(false);
-        return this._setupRequests(project);
-      })
-      .catch((cause) => {
-        this.$.modelError.text = cause.message;
-        this.$.modelError.opened = true;
-        console.warn(cause);
-        this._setLoadingProject(false);
-        this._setLoadingRequests(false);
-      });
-    }
-
-    _setupRequests(project) {
-      const e = this._dispatchRequestRead(project._id);
-      if (!e.defaultPrevented) {
-        console.warn('request-project-list event not handled!');
-        return;
-      }
-      const projectHasRequests = !!project.requests;
       this._setLoadingRequests(true);
-      return e.detail.result
+      return this.readProjectRequests(projectId)
       .then((requests) => {
-        if (!projectHasRequests) {
-          requests.sort(this._legacySort);
-        }
         this.requests = requests;
+        this._setLoadingProject(false);
         this._setLoadingRequests(false);
-        if (!projectHasRequests) {
-          this._persistReorder();
-        }
       })
       .catch((cause) => {
         this.$.modelError.text = cause.message;
         this.$.modelError.opened = true;
         console.warn(cause);
+        this._setLoadingProject(false);
         this._setLoadingRequests(false);
       });
-    }
-    /**
-     * Sorts requests list by `projectOrder` property
-     *
-     * @param {Object} a
-     * @param {Object} b
-     * @return {Number}
-     */
-    _legacySort(a, b) {
-      if (a.projectOrder > b.projectOrder) {
-        return 1;
-      }
-      if (a.projectOrder < b.projectOrder) {
-        return -1;
-      }
-      if (a.name > b.name) {
-        return 1;
-      }
-      if (a.name < b.name) {
-        return -1;
-      }
-      return 0;
-    }
-
-    _requestDeletedHandler(e) {
-      const requests = this.requests;
-      const projectId = this.projectId;
-      if (e.cancelable || !projectId || !requests || !requests.length) {
-        return;
-      }
-      const deleteId = e.detail.id;
-      for (let i = 0, len = requests.length; i < len; i++) {
-        if (requests[i]._id === deleteId) {
-          this.splice('requests', i, 1);
-          return;
-        }
-      }
-    }
-    /**
-     * Tests whether the request belongs to a project.
-     * @param {Object} request The request object.
-     * @return {Boolean}
-     */
-    _isProjectRequest(request) {
-      const projectId = this.projectId;
-      if (!projectId) {
-        return false;
-      }
-      if (request.projects && request.projects.indexOf(projectId) !== -1) {
-        return true;
-      } else if (request.legacyProject === projectId) {
-        return true;
-      }
-      return false;
-    }
-
-    _requestChangedHandler(e) {
-      const projectId = this.projectId;
-      if (e.cancelable || !projectId) {
-        return;
-      }
-      const requests = this.requests;
-      const request = e.detail.request;
-      if (!requests) {
-        if (this._isProjectRequest(request)) {
-          this.requests = [request];
-        }
-        return;
-      }
-      for (let i = 0, len = requests.length; i < len; i++) {
-        if (requests[i]._id === request._id) {
-          if (this._isProjectRequest(request)) {
-            this.set(`requests.${i}`, request);
-          } else {
-            this.splice('requests', i, 1);
-          }
-          return;
-        }
-      }
-      if (this._isProjectRequest(request)) {
-        this.push(`requests`, request);
-      }
     }
 
     _cancelRequestLoading(loadingRequests, hasRequests) {
@@ -612,19 +479,7 @@ the License.
         if (opts.skipRevert) {
           return;
         }
-        return Object.keys(updated)
-        .map((id) => {
-          let newRev = updated[id];
-          const len = delCopy.length;
-          for (let i = 0; i < len; i++) {
-            if (delCopy[i]._id === id) {
-              const item = delCopy[i];
-              item._rev = newRev;
-              return item;
-            }
-          }
-          throw new Error('Item not found');
-        });
+        return this._updateDeletedRevs(delCopy, updated);
       })
       .then((deleted) => {
         if (opts.skipRevert) {
@@ -640,6 +495,29 @@ the License.
         this.$.deleteToast.text = msg;
         this.$.deleteToast.opened = true;
       });
+    }
+    /**
+     * Updates `_rev` property after the item was deleted.
+     * @param {Array<Object>} deleted List of deleted requests to be updated.
+     * @param {Object} updateResult Request model response to delete request.
+     * @return {Array<Object>} List of requests with updated `_rev`
+     */
+    _updateDeletedRevs(deleted, updateResult) {
+      const result = [];
+      const keys = Object.keys(updateResult);
+      const delLen = deleted.length;
+      for (let i = 0, len = keys.length; i < len; i++) {
+        const id = keys[i];
+        let newRev = updateResult[id];
+        for (let j = 0; j < delLen; j++) {
+          if (deleted[j]._id === id) {
+            deleted[j]._rev = newRev;
+            result[result.length] = deleted[j];
+            break;
+          }
+        }
+      }
+      return result;
     }
     /**
      * Restores removed requests.
@@ -659,8 +537,9 @@ the License.
         return Promise.reject(new Error('Unable to revert. No model.'));
       }
       return e.detail.result
-      .catch(() => {
+      .catch((cause) => {
         this.$.revertError.opened = true;
+        console.warn(cause);
       });
     }
     /**
@@ -682,86 +561,97 @@ the License.
       this.dispatchEvent(e);
       return e;
     }
-
+    /**
+     * Forces main menu to close.
+     */
     _closeMainMenu() {
       this.$.contextMenu.selected = -1;
       this.$.contextMenu.parentElement.opened = false;
     }
-    // Handles the export event. Fires `export-data` custom event
-    _onExport(e) {
+    /**
+     * Toggles export options panel and sets export items to all currently loaded requests.
+     */
+    openExportAll() {
       this._closeMainMenu();
-      this._exportItems(e.detail.items, e.detail.destination);
-    }
-    // Menu item handler to export all project data
-    _onExportAll() {
-      this._closeMainMenu();
-      this._exportItems(this.requests, 'file');
+      this._exportOptionsOpened = !this._exportOptionsOpened;
+      this._exportItems = this.requests || [];
     }
 
-    _onExportAllDrive() {
-      this._closeMainMenu();
-      this._exportItems(this.requests, 'drive');
+    _cancelExportOptions() {
+      this._exportOptionsOpened = false;
+      this._exportItems = undefined;
+    }
+
+    _onExport(e) {
+      this._exportOptionsOpened = true;
+      this._exportItems = e.detail.items || [];
     }
     /**
-     * Dispatches the `export-data` event with relevant data.
+     * Creates export file for all items.
+     * @return {Promise} Result of calling `_doExportItems()`
+     */
+    _exportAllFile() {
+      const detail = {
+        options: {
+          file: this._generateFileName(),
+          kind: 'ARC#ProjectExport',
+          provider: 'file'
+        }
+      };
+      return this._doExportItems(true, detail);
+    }
+    /**
+     * Handler for `accept` event dispatched by export options element.
+     * @param {CustomEvent} e
+     * @return {Promise} Result of calling `_doExportItems()`
+     */
+    _acceptExportOptions(e) {
+      this._exportOptionsOpened = false;
+      const detail = e.detail;
+      return this._doExportItems(this._exportItems, detail);
+    }
+    /**
+     * Calls `_dispatchExportData()` from requests lists mixin with
+     * prepared arguments
      *
-     * @param {Array} requests List of request to export with the project.
-     * @param {String} destination
+     * @param {Array<Object>} requests List of request to export with the project.
+     * @param {String} detail Export configuration
      * @return {Promise}
      */
-    _exportItems(requests, destination) {
-      destination = destination || 'file';
-      const e = this._dispatchExportData(destination, requests);
-      if (!e.defaultPrevented) {
-        this.$.noExport.opened = true;
-        return Promise.reject(new Error('No export module.'));
-      }
-      return e.detail.result
+    _doExportItems(requests, detail) {
+      detail.options.kind = 'ARC#ProjectExport';
+      const request = this._dispatchExportData(requests, detail);
+      return request.detail.result
       .then(() => {
-        if (destination === 'drive') {
+        if (detail.options.provider === 'drive') {
+          // TODO: Render link to the folder
           this.$.driveSaved.opened = true;
         }
+        this._exportItems = undefined;
       })
       .catch((cause) => {
-        if (!cause || !cause.message) {
-          return;
-        }
+        this.$.errorToast.text = cause.message;
+        this.$.errorToast.opened = true;
         console.warn(cause);
-        this.$.exportError.text = cause.message;
-        this.$.exportError.opened = true;
       });
     }
-
+    /**
+     * Generates export file name based on current project name.
+     * @return {String} File name for export.
+     */
     _generateFileName() {
       const project = this.project;
-      return (project ? project.name : 'project-export') + '.json';
-    }
-
-    /**
-     * Dispatches `export-data` event and returns it.
-     * @param {String} destination A place where export the data (file, drive)
-     * @param {Array<Object>|Boolean} requests
-     * @return {CustomEvent}
-     */
-    _dispatchExportData(destination, requests) {
-      const file = this._generateFileName();
-      const e = new CustomEvent('export-data', {
-        cancelable: true,
-        composed: true,
-        bubbles: true,
-        detail: {
-          type: 'arc-export',
-          destination,
-          file,
-          kind: 'ARC#ProjectExport',
-          data: {
-            projects: [this.project],
-            requests
-          }
+      let name = project && project.name;
+      if (!name) {
+        name = 'arc-project-export.json';
+      } else {
+        name = name.toLowerCase().replace(/\s/g, '-');
+        if (name[name.length - 1] !== '.') {
+          name += '.';
         }
-      });
-      this.dispatchEvent(e);
-      return e;
+        name += 'json';
+      }
+      return name;
     }
     /**
      * Handler for the list reorder event. Updates items order in the datastore.
@@ -772,13 +662,37 @@ the License.
         return;
       }
       const newOrder = items.map((item) => item._id);
-      if (this.project.requests === newOrder) {
+      if (this._requestIdsArrayEqual(this.project.requests, newOrder)) {
         return;
       }
       this.project.requests = newOrder;
       this._dispatchProjectUpdate(this.project)
       .catch(() => this.$.reorderError.opened = true);
     }
+    /**
+     * Checks if 2 arrays of scalar items equals.
+     * @param {Array<String>} a1 First array
+     * @param {Array<String>} a2 Other array
+     * @return {Boolean}
+     */
+    _requestIdsArrayEqual(a1, a2) {
+      if (!a1 && !a2) {
+        return true;
+      }
+      if (!a1 || !a2) {
+        return false;
+      }
+      if (a1.length !== a2.length) {
+        return false;
+      }
+      for (let i = 0, len = a1.length; i < len; i++) {
+        if (a1[i] !== a2[i]) {
+          return false;
+        }
+      }
+      return true;
+    }
+
     // Updates requests in bulk opeartion.
     _updateBulk(items) {
       const promises = items.map((item) => this._updateRequest(item));
@@ -805,10 +719,7 @@ the License.
       }
       return e.detail.result;
     }
-    // Computes value for the `hasRequests` property.
-    _computeHasRequests(length) {
-      return !!(length);
-    }
+
     // Toogles project details editor
     toggleEdit() {
       this.edit = !this.edit;
@@ -861,21 +772,6 @@ the License.
         return new Promise.reject(new Error('Model event not handled.'));
       }
       return e.detail.result;
-    }
-
-    /**
-     * handler for the `project-object-changed`. Updates project data if needed.
-     * @param {CustomEvent} e
-     */
-    _projectDataChanged(e) {
-      if (e.composedPath()[0] === this || e.cancelable) {
-        return;
-      }
-      if (e.detail.project._id !== this.projectId) {
-        return;
-      }
-      this.set('project', e.detail.project);
-      this._setupRequests(e.detail.project);
     }
     /**
      * Handler for the `project-object-deleted` event.
@@ -1029,6 +925,25 @@ the License.
     _saveRequestEdit() {
       this.editorOpened = false;
       this.$.requestEditor.request = undefined;
+    }
+
+    _updateExportFile() {
+      this.set('_exportOptions.file', this._generateFileName());
+    }
+    /**
+     * Updates icon size CSS variable and notifies resize on the list when
+     * list type changes.
+     * @param {?String} type
+     */
+    _updateListStyles(type) {
+      let size;
+      switch (type) {
+        case 'comfortable': size = 40; break;
+        case 'compact': size = 36; break;
+        default: size = 56; break;
+      }
+      const list = this.shadowRoot.querySelector('project-requests-list');
+      this._applyListStyles(size, list);
     }
     /**
      * Fired when navigation was requested

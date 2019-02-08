@@ -12,6 +12,7 @@
     <link rel="import" href="../../arc-models/project-model.html">
     <link rel="import" href="../../app-pouchdb/pouchdb.html">
     <link rel="import" href="../project-details.html">
+    <link rel="import" href="../project-details-editor.html">
   </head>
   <body>
     <request-model></request-model>
@@ -19,6 +20,12 @@
     <test-fixture id="basic">
       <template>
         <project-details></project-details>
+      </template>
+    </test-fixture>
+
+    <test-fixture id="Editor">
+      <template>
+        <project-details-editor></project-details-editor>
       </template>
     </test-fixture>
 
@@ -116,6 +123,43 @@
           assert.isTrue(called);
           done();
         });
+      });
+    });
+
+    suite('cancel()', () => {
+      let element;
+      setup(function() {
+        element = fixture('Editor');
+      });
+
+      test('Dispatech cancel-edit event', () => {
+        const spy = sinon.spy();
+        element.addEventListener('cancel-edit', spy);
+        element.cancel();
+        assert.isTrue(spy.called);
+      });
+    });
+
+    suite('save()', () => {
+      let element;
+      setup(function() {
+        element = fixture('Editor');
+      });
+
+      test('Opens missingName when no name', () => {
+        element.name = '';
+        element.save();
+        assert.isTrue(element.$.missingName.opened);
+      });
+
+      test('Dispatches save event with detail', () => {
+        element.name = 'test-name';
+        element.description = 'test-description';
+        const spy = sinon.spy();
+        element.addEventListener('save-edit', spy);
+        element.save();
+        assert.equal(spy.args[0][0].detail.name, element.name);
+        assert.equal(spy.args[0][0].detail.description, element.description);
       });
     });
     </script>

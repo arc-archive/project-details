@@ -8,8 +8,13 @@
  *   project-details.html
  */
 
+
+// tslint:disable:variable-name Describing an API that's defined elsewhere.
+// tslint:disable:no-any describes the API as best we are able today
+
 /// <reference path="../polymer/types/polymer-element.d.ts" />
 /// <reference path="../project-requests-list/project-requests-list.d.ts" />
+/// <reference path="../requests-list-mixin/requests-list-mixin.d.ts" />
 /// <reference path="../paper-toast/paper-toast.d.ts" />
 /// <reference path="../paper-button/paper-button.d.ts" />
 /// <reference path="../paper-icon-button/paper-icon-button.d.ts" />
@@ -24,6 +29,7 @@
 /// <reference path="../paper-fab/paper-fab.d.ts" />
 /// <reference path="../marked-element/marked-element.d.ts" />
 /// <reference path="../markdown-styles/markdown-styles.d.ts" />
+/// <reference path="../export-options/export-options.d.ts" />
 /// <reference path="../paper-styles/shadow.d.ts" />
 /// <reference path="project-details-editor.d.ts" />
 
@@ -83,23 +89,14 @@ declare namespace UiElements {
    * `--warning-contrast-color` | Contrast color for the warning color | `#fff`
    * `--error-toast` | Mixin applied to the error toast | `{}`
    */
-  class ProjectDetails extends Polymer.Element {
+  class ProjectDetails extends
+    ArcComponents.RequestsListMixin(
+    Object) {
 
     /**
      * Project datastore ID to display.
      */
     projectId: string|null|undefined;
-
-    /**
-     * List of requests to display.
-     * This list is computed when the `projectId` changes
-     */
-    requests: any[]|null|undefined;
-
-    /**
-     * Project data restored from the datastore.
-     */
-    project: object|null|undefined;
 
     /**
      * Set to true to enable project editor.
@@ -115,11 +112,6 @@ declare namespace UiElements {
      * True when the request data are being loaded
      */
     readonly loadingRequests: boolean|null|undefined;
-
-    /**
-     * Computed value, true when the project has requests.
-     */
-    readonly hasRequests: boolean|null|undefined;
 
     /**
      * List of requests that has been recently removed
@@ -141,18 +133,45 @@ declare namespace UiElements {
      * This is passed to the request editor.
      */
     noAutoProjects: boolean|null|undefined;
-    connectedCallback(): void;
-    disconnectedCallback(): void;
-    _projectChanged(projectId: any): void;
-    _setupRequests(project: any): void;
 
     /**
-     * Sorts requests list by `projectOrder` property
+     * Indicates that the export options panel is currently rendered.
      */
-    _legacySort(a: object|null, b: object|null): Number|null;
-    _requestDeletedHandler(e: any): void;
-    _isProjectRequest(request: any): any;
-    _requestChangedHandler(e: any): void;
+    _exportOptionsOpened: boolean|null|undefined;
+    _exportOptions: object|null|undefined;
+    connectedCallback(): void;
+    disconnectedCallback(): void;
+    _dispatchProjectRead(id: any): any;
+
+    /**
+     * Updates requests in bulk opeartion.
+     */
+    _updateBulk(items: any): any;
+
+    /**
+     * Sends the `request-object-changed` custom event for each request on the list.
+     *
+     * @param item Request object.
+     * @returns Promise resolved when the request object is updated.
+     */
+    _updateRequest(item: object|null): Promise<any>|null;
+
+    /**
+     * Updates icon size CSS variable and notifies resize on the list when
+     * list type changes.
+     */
+    _updateListStyles(type: String|null): void;
+
+    /**
+     * Dispatches `project-object-changed` event to inform model to update
+     * the data.
+     *
+     * @param project Data to store.
+     */
+    _dispatchProjectUpdate(project: object|null): Promise<any>|null;
+    _navigate(detail: any): any;
+    _dispatchRequestRead(id: any): any;
+    _projectIdChanged(projectId: any): any;
     _cancelRequestLoading(loadingRequests: any, hasRequests: any): void;
 
     /**
@@ -179,29 +198,69 @@ declare namespace UiElements {
     _delete(deleted: Array<object|null>|null, opts: object|null): Promise<any>|null;
 
     /**
+     * Updates `_rev` property after the item was deleted.
+     *
+     * @param deleted List of deleted requests to be updated.
+     * @param updateResult Request model response to delete request.
+     * @returns List of requests with updated `_rev`
+     */
+    _updateDeletedRevs(deleted: Array<object|null>|null, updateResult: object|null): Array<object|null>|null;
+
+    /**
      * Restores removed requests.
      * It does nothing if `_latestDeleted` is not set or empty.
      */
     revertDeleted(): Promise<any>|null;
+
+    /**
+     * Dispatches `request-objects-undeleted` event.
+     *
+     * @param items List of deleted requests. The list
+     * contains objects with `_id` and `_rev` properties.
+     */
+    _dispatchUndelete(items: Array<object|null>|null): CustomEvent|null;
+
+    /**
+     * Forces main menu to close.
+     */
     _closeMainMenu(): void;
 
     /**
-     * Handles the export event. Fires `export-data` custom event
+     * Toggles export options panel and sets export items to all currently loaded requests.
      */
+    openExportAll(): void;
+    _cancelExportOptions(): void;
     _onExport(e: any): void;
 
     /**
-     * Menu item handler to export all project data
+     * Creates export file for all items.
+     *
+     * @returns Result of calling `_doExportItems()`
      */
-    _onExportAll(): void;
-    _onExportAllDrive(): void;
+    _exportAllFile(): Promise<any>|null;
 
     /**
-     * Dispatches the `export-data` event with relevant data.
+     * Handler for `accept` event dispatched by export options element.
+     *
+     * @returns Result of calling `_doExportItems()`
+     */
+    _acceptExportOptions(e: CustomEvent|null): Promise<any>|null;
+
+    /**
+     * Calls `_dispatchExportData()` from requests lists mixin with
+     * prepared arguments
      *
      * @param requests List of request to export with the project.
+     * @param detail Export configuration
      */
-    _exportItems(requests: any[]|null, destination: String|null): void;
+    _doExportItems(requests: Array<object|null>|null, detail: String|null): Promise<any>|null;
+
+    /**
+     * Generates export file name based on current project name.
+     *
+     * @returns File name for export.
+     */
+    _generateFileName(): String|null;
 
     /**
      * Handler for the list reorder event. Updates items order in the datastore.
@@ -209,22 +268,12 @@ declare namespace UiElements {
     _persistReorder(): void;
 
     /**
-     * Updates requests in bulk opeartion.
-     */
-    _updateBulk(items: any): any;
-
-    /**
-     * Sends the `request-object-changed` custom event for each request on the list.
+     * Checks if 2 arrays of scalar items equals.
      *
-     * @param item Request object.
-     * @returns Promise resolved when the request object is updated.
+     * @param a1 First array
+     * @param a2 Other array
      */
-    _updateRequest(item: object|null): Promise<any>|null;
-
-    /**
-     * Computes value for the `hasRequests` property.
-     */
-    _computeHasRequests(length: any): any;
+    _requestIdsArrayEqual(a1: Array<String|null>|null, a2: Array<String|null>|null): Boolean|null;
 
     /**
      * Toogles project details editor
@@ -240,19 +289,6 @@ declare namespace UiElements {
      * Handler to project edit save event
      */
     _saveEdit(e: any): any;
-
-    /**
-     * Dispatches `project-object-changed` event to inform model to update
-     * the data.
-     *
-     * @param project Data to store.
-     */
-    _dispatchProjectUpdate(project: object|null): Promise<any>|null;
-
-    /**
-     * handler for the `project-object-changed`. Updates project data if needed.
-     */
-    _projectDataChanged(e: CustomEvent|null): void;
 
     /**
      * Handler for the `project-object-deleted` event.
@@ -306,6 +342,7 @@ declare namespace UiElements {
      * Closes editor when saving request
      */
     _saveRequestEdit(): void;
+    _updateExportFile(): void;
   }
 }
 
