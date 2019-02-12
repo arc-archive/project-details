@@ -37,9 +37,10 @@ DataHelper.doneWhenLoaded = function(element) {
         checkDone();
       }
     });
-    element.addEventListener('loading-requests-changed', function c2(e) {
+    const list = element.shadowRoot.querySelector('project-requests-list');
+    list.addEventListener('loading-requests-changed', function c2(e) {
       if (e.detail.value === false) {
-        element.removeEventListener('loading-requests-changed', c2);
+        list.removeEventListener('loading-requests-changed', c2);
         DataHelper.loaded[1] = true;
         checkDone();
       }

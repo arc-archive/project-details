@@ -1,7 +1,7 @@
 {
   "name": "project-details",
   "description": "A project details panel for the Advanced REST Client",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "license": "Apache-2.0",
   "authors": [
     "Pawel Psztyc",
@@ -36,8 +36,7 @@
     "saved-request-detail": "advanced-rest-client/saved-request-detail#^2.0.0",
     "marked-element": "PolymerElements/marked-element#^2.0.0",
     "markdown-styles": "advanced-rest-client/markdown-styles#^2.0.0",
-    "export-options": "advanced-rest-client/export-options#^2.0.0",
-    "requests-list-mixin": "advanced-rest-client/requests-list-mixin#^2.0.0"
+    "export-options": "advanced-rest-client/export-options#^2.0.0"
   },
   "devDependencies": {
     "iron-component-page": "PolymerElements/iron-component-page#^3.0.1",
@@ -52,7 +51,11 @@
     "arc-data-generator": "advanced-rest-client/arc-data-generator#^1.0.1",
     "arc-electron-default-theme": "advanced-rest-client/arc-electron-default-theme#2.0.0-preview",
     "projects-menu": "advanced-rest-client/projects-menu#^2.0.0",
-    "arc-data-export": "advanced-rest-client/arc-data-export#^2.0.0"
+    "arc-data-export": "advanced-rest-client/arc-data-export#^2.0.0",
+    "history-menu": "advanced-rest-client/history-menu#^2.0.0",
+    "paper-toggle-button": "PolymerElements/paper-toggle-button#^2.0.0",
+    "paper-tabs": "PolymerElements/paper-tabs#^2.0.0",
+    "iron-pages": "PolymerElements/iron-pages#^2.0.0"
   },
   "ignore": [
     "**/.*",

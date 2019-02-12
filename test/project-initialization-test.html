@@ -5,12 +5,6 @@
     <meta name="viewport" content="width=device-width, minimum-scale=1.0, initial-scale=1.0, user-scalable=yes">
     <script src="../../webcomponentsjs/webcomponents-loader.js"></script>
     <script src="../../web-component-tester/browser.js"></script>
-    <script src="../../chance/dist/chance.min.js"></script>
-    <script src="data-helper.js"></script>
-    <link rel="import" href="../../arc-models/request-model.html">
-    <link rel="import" href="../../arc-models/project-model.html">
-    <link rel="import" href="../../app-pouchdb/pouchdb.html">
-    <link rel="import" href="../../arc-data-generator/arc-data-generator.html">
     <link rel="import" href="../project-details.html">
   </head>
   <body>
@@ -27,7 +21,6 @@
     </test-fixture>
 
     <script>
-    /* global DataGenerator */
     suite('_projectIdChanged()', () => {
       let element;
       setup(function() {
@@ -36,12 +29,6 @@
 
       test('Clears project data', () => {
         element.project = {};
-        element._projectIdChanged();
-        assert.isUndefined(element.project);
-      });
-
-      test('Clears requests list', () => {
-        element.requests = [{}];
         element._projectIdChanged();
         assert.isUndefined(element.project);
       });
@@ -65,28 +52,6 @@
         });
       });
 
-      test('Resets loadingRequests on error', () => {
-        return element._projectIdChanged('test-id')
-        .then(() => {
-          assert.isFalse(element.loadingRequests);
-        });
-      });
-
-      test('Opens error toast when project read event is not handled', () => {
-        let called = false;
-        element.addEventListener('project-read', function f(e) {
-          element.removeEventListener('project-read', f);
-          e.preventDefault();
-          e.detail.result = Promise.resolve({test: true});
-          called = true;
-        });
-        return element._projectIdChanged('test-id')
-        .then(() => {
-          assert.isTrue(called, 'Project read called');
-          assert.isTrue(element.$.modelError.opened);
-        });
-      });
-
       test('Sets project object', () => {
         element.addEventListener('project-read', function f(e) {
           element.removeEventListener('project-read', f);
@@ -96,23 +61,6 @@
         return element._projectIdChanged('test-id')
         .then(() => {
           assert.deepEqual(element.project, {test: true});
-        });
-      });
-
-      test('Sets requests array', () => {
-        element.addEventListener('project-read', function f(e) {
-          element.removeEventListener('project-read', f);
-          e.preventDefault();
-          e.detail.result = Promise.resolve({test: true});
-        });
-        element.addEventListener('request-project-list', function f(e) {
-          element.removeEventListener('request-project-list', f);
-          e.preventDefault();
-          e.detail.result = Promise.resolve([{request: true}]);
-        });
-        return element._projectIdChanged('test-id')
-        .then(() => {
-          assert.deepEqual(element.requests, [{request: true}]);
         });
       });
     });

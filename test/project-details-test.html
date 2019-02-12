@@ -30,16 +30,12 @@
     </test-fixture>
 
     <script>
-    /* global DataGenerator, chance */
+    /* global DataGenerator, chance, DataHelper */
     suite('Initialization', () => {
       suite('basic', function() {
         let element;
         setup(function() {
           element = fixture('NoAuto');
-        });
-
-        test('requests are not set', function() {
-          assert.isUndefined(element.requests);
         });
 
         test('project is not set', function() {
@@ -50,8 +46,8 @@
           assert.isFalse(element.edit);
         });
 
-        test('hasRequests is false by default', function() {
-          assert.isFalse(element.hasRequests);
+        test('_hasRequests is false by default', function() {
+          assert.isFalse(element._hasRequests);
         });
       });
 
@@ -74,27 +70,23 @@
         let element;
         setup((done) => {
           element = fixture('Basic');
-          element.addEventListener('loading-requests-changed', function f(e) {
+          const list = element.shadowRoot.querySelector('project-requests-list');
+          list.addEventListener('loading-requests-changed', function f(e) {
             if (e.detail.value) {
               return;
             }
-            element.removeEventListener('loading-requests-changed', f);
+            list.removeEventListener('loading-requests-changed', f);
             flush(() => done());
           });
           element.projectId = project._id;
-        });
-
-        test('Requests are set', function() {
-          assert.typeOf(element.requests, 'array');
-          assert.lengthOf(element.requests, project.requests.length);
         });
 
         test('Project is set', function() {
           assert.typeOf(element.project, 'object');
         });
 
-        test('hasRequests is computed', function() {
-          assert.isTrue(element.hasRequests);
+        test('_hasRequests is computed', function() {
+          assert.isTrue(element._hasRequests);
         });
       });
     });
@@ -229,10 +221,60 @@
       });
     });
 
+    suite('_dispatchProjectUpdate()', () => {
+      function handler(e) {
+        e.stopPropagation();
+        e.preventDefault();
+        e.detail.result = Promise.resolve();
+      }
+      function stopHandler(e) {
+        e.stopPropagation();
+      }
+      let element;
+      setup((done) => {
+        element = fixture('Basic');
+        element._handleProjectsError = () => {};
+        flush(() => done());
+      });
+
+      teardown(() => {
+        document.body.removeEventListener('project-object-changed', handler);
+        document.body.removeEventListener('project-object-changed', stopHandler);
+      });
+
+      test('Calls _dispatch() with arguments', () => {
+        document.body.addEventListener('project-object-changed', handler);
+        const spy = sinon.spy(element, '_dispatch');
+        const p = {_id: 'test-p'};
+        element._dispatchProjectUpdate(p);
+        assert.equal(spy.args[0][0], 'project-object-changed');
+        assert.deepEqual(spy.args[0][1].project, p);
+      });
+
+      test('Returns promise from the event', () => {
+        document.body.addEventListener('project-object-changed', handler);
+        const p = {_id: 'test-p'};
+        const result = element._dispatchProjectUpdate(p);
+        assert.typeOf(result.then, 'function');
+      });
+
+      test('Rejects when no model', () => {
+        document.body.addEventListener('project-object-changed', stopHandler);
+        const p = {_id: 'test-p'};
+        return element._dispatchProjectUpdate(p)
+        .then(() => {
+          throw new Error('Should not result');
+        })
+        .catch((cause) => {
+          assert.equal(cause.message, 'Model event not handled.');
+        });
+      });
+    });
+
     suite('_dispatchUndelete()', () => {
       let element;
       let list;
-      setup(() => {
+      setup((done) => {
         element = fixture('NoAuto');
         list = [];
         for (let i = 0; i < 5; i++) {
@@ -241,6 +283,8 @@
             _rev: chance.guid({version: 5})
           };
         }
+        element._handleProjectsError = () => {};
+        flush(() => done());
       });
 
       test('Dispatches request-objects-undeleted event', () => {
@@ -339,13 +383,14 @@
         e.detail.result.catch(() => {});
       });
     });
+
     suite('revertDeleted()', () => {
       teardown(() => {
         return DataGenerator.destroySavedRequestData();
       });
       let element;
       let list;
-      setup(() => {
+      setup((done) => {
         element = fixture('NoAuto');
         list = [];
         for (let i = 0; i < 5; i++) {
@@ -354,6 +399,8 @@
             _rev: chance.guid({version: 5})
           };
         }
+        element._handleProjectsError = () => {};
+        flush(() => done());
       });
 
       test('Does nothing when delete was not called before', function() {
@@ -414,8 +461,10 @@
 
     suite('_onOpen()', () => {
       let element;
-      setup(function() {
+      setup(function(done) {
         element = fixture('NoAuto');
+        element._handleProjectsError = () => {};
+        flush(() => done());
       });
 
       test('Calls _navigate with arguments', () => {
@@ -474,7 +523,8 @@
 
       test('Sets _exportItems', () => {
         const items = [{test: true}];
-        element.requests = items;
+        const list = element.shadowRoot.querySelector('project-requests-list');
+        list.requests = items;
         element.openExportAll();
         assert.deepEqual(element._exportItems, items);
       });
@@ -719,104 +769,6 @@
       });
     });
 
-    suite('_persistReorder()', () => {
-      let element;
-      setup(function() {
-        element = fixture('NoAuto');
-      });
-
-      test('Does nothing when no requests', () => {
-        const spy = sinon.spy(element, '_dispatchProjectUpdate');
-        element._persistReorder();
-        assert.isFalse(spy.called);
-      });
-
-      test('Does nothing when no project', () => {
-        element.requests = DataGenerator.generateRequests({requestsSize: 3});
-        const spy = sinon.spy(element, '_dispatchProjectUpdate');
-        element._persistReorder();
-        assert.isFalse(spy.called);
-      });
-
-      test('Does nothing when project requests has the same order', () => {
-        const requests = DataGenerator.generateRequests({requestsSize: 3});
-        element.requests = requests;
-        element.project = {
-          requests: requests.map((item) => item._id),
-          _id: 'test-id'
-        };
-        const spy = sinon.spy(element, '_dispatchProjectUpdate');
-        element._persistReorder();
-        assert.isFalse(spy.called);
-      });
-
-      test('Calls _dispatchProjectUpdate()', () => {
-        const requests = DataGenerator.generateRequests({requestsSize: 3});
-        element.requests = requests;
-        element.project = {
-          requests: [],
-          _id: 'test-id'
-        };
-        element.addEventListener('project-object-changed', function f(e) {
-          element.removeEventListener('project-object-changed', f);
-          e.stopPropagation();
-          e.preventDefault();
-          e.detail.result = Promise.resolve();
-        });
-        const spy = sinon.spy(element, '_dispatchProjectUpdate');
-        element._persistReorder();
-        assert.isTrue(spy.called);
-      });
-    });
-
-    suite('_requestIdsArrayEqual()', () => {
-      let element;
-      setup(function() {
-        element = fixture('NoAuto');
-      });
-      [
-        [null, null, true, 'both not set'],
-        [null, [], false, 'a1 is not defined'],
-        [[], null, false, 'a2 is not defined'],
-        [['a'], ['a'], true, 'are the same'],
-        [['a'], ['b'], false, 'id is different'],
-        [['a', 'b'], ['b'], false, 'length is different']
-      ].forEach((item) => {
-        test(`Returns ${item[2]} when ${item[3]}`, () => {
-          const result = element._requestIdsArrayEqual(item[0], item[1]);
-          assert.equal(result, item[2]);
-        });
-      });
-    });
-
-    suite('_updateListStyles()', () => {
-      let element;
-      setup(() => {
-        element = fixture('NoAuto');
-      });
-
-      test('Calls _applyListStyles() for default type', () => {
-        const spy = sinon.spy(element, '_applyListStyles');
-        element._updateListStyles('default');
-        assert.equal(spy.args[0][0], 56);
-        assert.ok(spy.args[0][1]);
-      });
-
-      test('Calls _applyListStyles() for comfortable type', () => {
-        const spy = sinon.spy(element, '_applyListStyles');
-        element._updateListStyles('comfortable');
-        assert.equal(spy.args[0][0], 40);
-        assert.ok(spy.args[0][1]);
-      });
-
-      test('Calls _applyListStyles() for compact type', () => {
-        const spy = sinon.spy(element, '_applyListStyles');
-        element._updateListStyles('compact');
-        assert.equal(spy.args[0][0], 36);
-        assert.ok(spy.args[0][1]);
-      });
-    });
-
     suite('_updateRequest()', () => {
       let element;
       setup(() => {
@@ -848,6 +800,140 @@
         return element._updateRequest({_id: 'test-id'})
         .then((result) => {
           assert.deepEqual(result, updObj);
+        });
+      });
+    });
+
+    suite('_projectForRequests()', () => {
+      let element;
+      let projectId;
+      suiteSetup(function() {
+        return DataHelper.generateData()
+        .then((result) => {
+          projectId = result.projectId;
+        });
+      });
+
+      suiteTeardown(function() {
+        return DataGenerator.destroySavedRequestData();
+      });
+
+      setup(function() {
+        element = fixture('Basic');
+        element.projectId = projectId;
+        return DataHelper.doneWhenLoaded(element);
+      });
+
+      test('Returns undefine dwhen no project data', () => {
+        element.project = undefined;
+        const result = element._projectForRequests([{_id: 'test'}]);
+        assert.isUndefined(result);
+      });
+
+      test('Maps requests when project does not have one', () => {
+        delete element.project.requests;
+        const result = element._projectForRequests([{_id: 'test'}]);
+        assert.deepEqual(result.requests, ['test']);
+      });
+
+      test('Returns the same requests', () => {
+        const requests = element.requests;
+        const result = element._projectForRequests(requests);
+        assert.deepEqual(result.requests, requests.map((i) => i._id));
+      });
+
+      test('Returns only requests passed in the argument', () => {
+        const requests = element.requests.slice(0, 2);
+        const result = element._projectForRequests(requests);
+        assert.deepEqual(result.requests, requests.map((i) => i._id));
+      });
+    });
+
+    suite('_updateBulk()', () => {
+      let element;
+      setup(function() {
+        element = fixture('NoAuto');
+        element._updateRequest = () => Promise.resolve();
+      });
+
+      test('Returns a promise', () => {
+        const result = element._updateBulk([{}]);
+        assert.typeOf(result.then, 'function');
+      });
+
+      test('Calls _updateRequest() for each item', () => {
+        const spy = sinon.spy(element, '_updateRequest');
+        element._updateBulk([{}, {}]);
+        assert.equal(spy.callCount, 2);
+      });
+    });
+
+    suite('_deleteDialogResult()', () => {
+      let element;
+      setup(function() {
+        element = fixture('NoAuto');
+        element._updateBulk = () => Promise.resolve();
+        element._delete = () => Promise.resolve();
+        element._notifyDeleteProject = () => Promise.resolve();
+      });
+
+      test('Does nothing when dialog cancelled', () => {
+        const spy = sinon.spy(element, '_updateBulk');
+        return element._deleteDialogResult({
+          detail: {
+            canceled: true
+          }
+        })
+        .then(() => {
+          assert.isFalse(spy.called);
+        });
+      });
+
+      test('Does nothing when dialog not confirmed', () => {
+        const spy = sinon.spy(element, '_updateBulk');
+        return element._deleteDialogResult({
+          detail: {
+            confirmed: false
+          }
+        })
+        .then(() => {
+          assert.isFalse(spy.called);
+        });
+      });
+
+      test('Calls _updateBulk() when has requests that belongs to other projects', () => {
+        const spy = sinon.spy(element, '_updateBulk');
+        const node = element.shadowRoot.querySelector('project-requests-list');
+        element.project = DataGenerator.createProjectObject();
+        const requests = node.requests = DataGenerator.generateRequests({requestsSize: 6});
+        requests.forEach((item) => {
+          item.projects = ['test', element.project._id];
+        });
+        return element._deleteDialogResult({
+          detail: {
+            confirmed: true
+          }
+        })
+        .then(() => {
+          assert.deepEqual(spy.args[0][0], requests);
+        });
+      });
+
+      test('Calls _delete() when requests has single project', () => {
+        const spy = sinon.spy(element, '_delete');
+        const node = element.shadowRoot.querySelector('project-requests-list');
+        element.project = DataGenerator.createProjectObject();
+        const requests = node.requests = DataGenerator.generateRequests({requestsSize: 6});
+        requests.forEach((item) => {
+          item.projects = [element.project._id];
+        });
+        return element._deleteDialogResult({
+          detail: {
+            confirmed: true
+          }
+        })
+        .then(() => {
+          assert.deepEqual(spy.args[0][0], requests);
         });
       });
     });
