@@ -612,7 +612,7 @@ the License.
           provider: 'file'
         }
       };
-      return this._doExportItems(true, detail);
+      return this._doExportItems(this.requests, detail);
     }
     /**
      * Handler for `accept` event dispatched by export options element.

@@ -558,6 +558,7 @@
       let element;
       setup(() => {
         element = fixture('Basic');
+        element.request = DataGenerator.generateRequests({requestsSize: 2});
         window.addEventListener('arc-data-export', handler);
       });
 
@@ -575,7 +576,7 @@
       test('First argument is true', () => {
         const spy = sinon.spy(element, '_doExportItems');
         const result = element._exportAllFile();
-        assert.isTrue(spy.args[0][0]);
+        assert.deepEqual(spy.args[0][0], element.requests);
         return result;
       });
 
