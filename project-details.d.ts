@@ -14,7 +14,6 @@
 
 /// <reference path="../polymer/types/polymer-element.d.ts" />
 /// <reference path="../project-requests-list/project-requests-list.d.ts" />
-/// <reference path="../requests-list-mixin/requests-list-mixin.d.ts" />
 /// <reference path="../paper-toast/paper-toast.d.ts" />
 /// <reference path="../paper-button/paper-button.d.ts" />
 /// <reference path="../paper-icon-button/paper-icon-button.d.ts" />
@@ -31,6 +30,7 @@
 /// <reference path="../markdown-styles/markdown-styles.d.ts" />
 /// <reference path="../export-options/export-options.d.ts" />
 /// <reference path="../paper-styles/shadow.d.ts" />
+/// <reference path="../uuid-generator/uuid-generator.d.ts" />
 /// <reference path="project-details-editor.d.ts" />
 
 declare namespace UiElements {
@@ -89,9 +89,8 @@ declare namespace UiElements {
    * `--warning-contrast-color` | Contrast color for the warning color | `#fff`
    * `--error-toast` | Mixin applied to the error toast | `{}`
    */
-  class ProjectDetails extends
-    ArcComponents.RequestsListMixin(
-    Object) {
+  class ProjectDetails extends Polymer.Element {
+    readonly requests: any;
 
     /**
      * Project datastore ID to display.
@@ -99,19 +98,20 @@ declare namespace UiElements {
     projectId: string|null|undefined;
 
     /**
+     * Retreived from the data store project data.
+     */
+    project: object|null|undefined;
+
+    /**
      * Set to true to enable project editor.
      */
     edit: boolean|null|undefined;
+    _hasRequests: boolean|null|undefined;
 
     /**
      * True when the project data are being loaded
      */
     readonly loadingProject: boolean|null|undefined;
-
-    /**
-     * True when the request data are being loaded
-     */
-    readonly loadingRequests: boolean|null|undefined;
 
     /**
      * List of requests that has been recently removed
@@ -135,44 +135,31 @@ declare namespace UiElements {
     noAutoProjects: boolean|null|undefined;
 
     /**
+     * Enables the comonent to accept drop action with a request.
+     */
+    draggableEnabled: boolean|null|undefined;
+
+    /**
      * Indicates that the export options panel is currently rendered.
      */
     _exportOptionsOpened: boolean|null|undefined;
     _exportOptions: object|null|undefined;
     connectedCallback(): void;
     disconnectedCallback(): void;
-    _dispatchProjectRead(id: any): any;
-
-    /**
-     * Updates requests in bulk opeartion.
-     */
-    _updateBulk(items: any): any;
-
-    /**
-     * Sends the `request-object-changed` custom event for each request on the list.
-     *
-     * @param item Request object.
-     * @returns Promise resolved when the request object is updated.
-     */
-    _updateRequest(item: object|null): Promise<any>|null;
-
-    /**
-     * Updates icon size CSS variable and notifies resize on the list when
-     * list type changes.
-     */
-    _updateListStyles(type: String|null): void;
-
-    /**
-     * Dispatches `project-object-changed` event to inform model to update
-     * the data.
-     *
-     * @param project Data to store.
-     */
-    _dispatchProjectUpdate(project: object|null): Promise<any>|null;
+    _draggableChanged(value: any): void;
+    _addDndEvents(): void;
+    _removeDndEvents(): void;
     _navigate(detail: any): any;
+    _dispatchProjectRead(id: any): any;
     _dispatchRequestRead(id: any): any;
-    _projectIdChanged(projectId: any): any;
-    _cancelRequestLoading(loadingRequests: any, hasRequests: any): void;
+
+    /**
+     * Updates project info when `projectId` changed.
+     *
+     * @param projectId Project data store id.
+     */
+    _projectIdChanged(projectId: String|null): Promise<any>|null;
+    _errorToast(message: any): void;
 
     /**
      * Handles the `list-item-open` event to open a request.
@@ -256,6 +243,27 @@ declare namespace UiElements {
     _doExportItems(requests: Array<object|null>|null, detail: String|null): Promise<any>|null;
 
     /**
+     * Updates project object to include only selected requests.
+     * The requests list can be all of them. In this case it uses the same list.
+     * If requests size is different than the projects requests then it iterates
+     * over the array and removes IDs that are not available on the `requests`
+     * list.
+     *
+     * @param requests List of requests being exported.
+     * @returns Project definition to export.
+     * This is a copy of current project.
+     */
+    _projectForRequests(requests: Array<object|null>|null): object|null;
+
+    /**
+     * Dispatches `export-data` event and returns it.
+     *
+     * @param requests List of request to export.
+     * @param project Project object to export
+     */
+    _dispatchExportData(requests: Array<object|null>|null, project: object|null, opts: object|null): CustomEvent|null;
+
+    /**
      * Generates export file name based on current project name.
      *
      * @returns File name for export.
@@ -263,17 +271,19 @@ declare namespace UiElements {
     _generateFileName(): String|null;
 
     /**
-     * Handler for the list reorder event. Updates items order in the datastore.
+     * Updates requests in bulk opeartion.
+     *
+     * @param items Requests list.
      */
-    _persistReorder(): void;
+    _updateBulk(items: Array<object|null>|null): Promise<any>|null;
 
     /**
-     * Checks if 2 arrays of scalar items equals.
+     * Sends the `request-object-changed` custom event for each request on the list.
      *
-     * @param a1 First array
-     * @param a2 Other array
+     * @param item Request object.
+     * @returns Promise resolved when the request object is updated.
      */
-    _requestIdsArrayEqual(a1: Array<String|null>|null, a2: Array<String|null>|null): Boolean|null;
+    _updateRequest(item: object|null): Promise<any>|null;
 
     /**
      * Toogles project details editor
@@ -289,6 +299,14 @@ declare namespace UiElements {
      * Handler to project edit save event
      */
     _saveEdit(e: any): any;
+
+    /**
+     * Dispatches `project-object-changed` event to inform model to update
+     * the data.
+     *
+     * @param project Data to store.
+     */
+    _dispatchProjectUpdate(project: object|null): Promise<any>|null;
 
     /**
      * Handler for the `project-object-deleted` event.
@@ -343,6 +361,61 @@ declare namespace UiElements {
      */
     _saveRequestEdit(): void;
     _updateExportFile(): void;
+
+    /**
+     * Dispatches bubbling and composed custom event.
+     * By default the event is cancelable until `cancelable` property is set to false.
+     *
+     * @param type Event type
+     * @param detail A detail to set
+     */
+    _dispatch(type: String|null, detail: any|null): CustomEvent|null;
+
+    /**
+     * Handler for the `project-object-changed` event.
+     *
+     * @returns False if the event was not handled.
+     */
+    _projectChanged(e: CustomEvent|null): Boolean|null;
+
+    /**
+     * Handler for `dragover` event on this element. If the dagged item is compatible
+     * it renders drop message.
+     */
+    _dragoverHandler(e: DragEvent|null): void;
+
+    /**
+     * Computes value fro `dropEffect` property of the `DragEvent`.
+     *
+     * @returns Either `copy` or `move`.
+     */
+    _computeDropEffect(e: DragEvent|null): String|null;
+
+    /**
+     * Handler for `drag` event on this element. If the dagged item is compatible
+     * it adds request to saved requests.
+     */
+    _dropHandler(e: DragEvent|null): void;
+
+    /**
+     * Handles logic when drop event is `move` in effect.
+     * Removes reference to old project (if exists). It uses `arc-source/project-detail`
+     * data from event which should hold project ID.
+     *
+     * @param request Request object
+     * @returns True if the request object changed.
+     */
+    _handleMoveDrop(e: DragEvent|null, request: object|null): Boolean|null;
+
+    /**
+     * Updates project and request objects and inserts the request at a position.
+     *
+     * @param index The position in requests order
+     * @param request Request to update
+     * @param forceRequestUpdate Forces update on request object even
+     * when position hasn't change.
+     */
+    _insertRequestAt(index: Number|null, request: object|null, forceRequestUpdate: Boolean|null): Promise<any>|null;
   }
 }
 
