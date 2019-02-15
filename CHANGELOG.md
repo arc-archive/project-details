@@ -159,3 +159,33 @@
 
 
 
+## [2.0.2](https://github.com/advanced-rest-client/project-details/compare/0.1.9...2.0.2) (2019-02-15)
+
+
+### Docs
+
+* Adding documentation ([ef807e87132c4ab2e8f6a8e291feeecfced4e931](https://github.com/advanced-rest-client/project-details/commit/ef807e87132c4ab2e8f6a8e291feeecfced4e931))
+* Updating typpings and Polymer docs ([473438feea2d2c1f2cc95a8ab30d8233a082c9b4](https://github.com/advanced-rest-client/project-details/commit/473438feea2d2c1f2cc95a8ab30d8233a082c9b4))
+
+### Fix
+
+* Fixing all file export ([631e091058cfed7da411484bf692a2ec6413ca6c](https://github.com/advanced-rest-client/project-details/commit/631e091058cfed7da411484bf692a2ec6413ca6c))
+* Fixing export flow ([af37047af77f407b3442deda55fbc9c120e918e6](https://github.com/advanced-rest-client/project-details/commit/af37047af77f407b3442deda55fbc9c120e918e6))
+
+### New
+
+* Adding drag and drop as an option ([7c50883cde4ae1307788d82a59a9ca9a1ad5fe2b](https://github.com/advanced-rest-client/project-details/commit/7c50883cde4ae1307788d82a59a9ca9a1ad5fe2b))
+* Adding support for drop event ([8df382c8b082cf024a5e043f5d7965232831cef5](https://github.com/advanced-rest-client/project-details/commit/8df382c8b082cf024a5e043f5d7965232831cef5))
+* Adding test coverage, adding more tests ([3fcd55c1c2b3877439c455ae53b65dae0199a1aa](https://github.com/advanced-rest-client/project-details/commit/3fcd55c1c2b3877439c455ae53b65dae0199a1aa))
+
+### Update
+
+* Adding new export options dialog ([3a1243219f6b589fc6ede2ce4c00469a283b3e3d](https://github.com/advanced-rest-client/project-details/commit/3a1243219f6b589fc6ede2ce4c00469a283b3e3d))
+* Adding requests list mixin support ([4c5ad0aeda56737e04f380605b81966844627833](https://github.com/advanced-rest-client/project-details/commit/4c5ad0aeda56737e04f380605b81966844627833))
+* Finishing API update ([503a96e9d48ba0364fc3e2e869cac5f11290f2f4](https://github.com/advanced-rest-client/project-details/commit/503a96e9d48ba0364fc3e2e869cac5f11290f2f4))
+* Removing wrapper for the list ([d1d632bc8b3b557e549051a49dd32d4c1cc2b445](https://github.com/advanced-rest-client/project-details/commit/d1d632bc8b3b557e549051a49dd32d4c1cc2b445))
+* Updated styling API to enable theming ([29032989b301583c01486926e9dbd8345861c07a](https://github.com/advanced-rest-client/project-details/commit/29032989b301583c01486926e9dbd8345861c07a))
+* Updating component to use latest API ([0e4ac2cb50230402528a776e4c0dcafe136bae68](https://github.com/advanced-rest-client/project-details/commit/0e4ac2cb50230402528a776e4c0dcafe136bae68))
+
+
+
