@@ -29,6 +29,7 @@ the License.
 <link rel="import" href="../markdown-styles/markdown-styles.html">
 <link rel="import" href="../export-options/export-options.html">
 <link rel="import" href="../paper-styles/shadow.html">
+<link rel="import" href="../uuid-generator/uuid-generator.html">
 <link rel="import" href="project-details-editor.html">
 <dom-module id="project-details">
   <template>
@@ -343,7 +344,7 @@ the License.
         /**
          * Enables the comonent to accept drop action with a request.
          */
-        draggableEnabled: {type: Boolean},
+        draggableEnabled: {type: Boolean, observer: '_draggableChanged'},
         /**
          * Indicates that the export options panel is currently rendered.
          */
@@ -377,6 +378,8 @@ the License.
       super();
       this._projectDeleteHandler = this._projectDeleteHandler.bind(this);
       this._projectChanged = this._projectChanged.bind(this);
+      this._dragoverHandler = this._dragoverHandler.bind(this);
+      this._dropHandler = this._dropHandler.bind(this);
     }
 
     connectedCallback() {
@@ -386,12 +389,42 @@ the License.
       }
       window.addEventListener('project-object-deleted', this._projectDeleteHandler);
       window.addEventListener('project-object-changed', this._projectChanged);
+      if (this.draggableEnabled) {
+        this._addDndEvents();
+      }
     }
 
     disconnectedCallback() {
       super.disconnectedCallback();
       window.removeEventListener('project-object-deleted', this._projectDeleteHandler);
       window.removeEventListener('project-object-changed', this._projectChanged);
+      this._removeDndEvents();
+    }
+
+    _draggableChanged(value) {
+      if (value) {
+        this._addDndEvents();
+      } else {
+        this._removeDndEvents();
+      }
+    }
+
+    _addDndEvents() {
+      if (this.__dndAdded) {
+        return;
+      }
+      this.__dndAdded = true;
+      this.addEventListener('dragover', this._dragoverHandler);
+      this.addEventListener('drop', this._dropHandler);
+    }
+
+    _removeDndEvents() {
+      if (!this.__dndAdded) {
+        return;
+      }
+      this.__dndAdded = false;
+      this.removeEventListener('dragover', this._dragoverHandler);
+      this.removeEventListener('drop', this._dropHandler);
     }
 
     _navigate(detail) {
@@ -956,21 +989,6 @@ the License.
     _updateExportFile() {
       this.set('_exportOptions.file', this._generateFileName());
     }
-    // /**
-    //  * Updates icon size CSS variable and notifies resize on the list when
-    //  * list type changes.
-    //  * @param {?String} type
-    //  */
-    // _updateListStyles(type) {
-    //   let size;
-    //   switch (type) {
-    //     case 'comfortable': size = 40; break;
-    //     case 'compact': size = 36; break;
-    //     default: size = 56; break;
-    //   }
-    //   const list = this.shadowRoot.querySelector('project-requests-list');
-    //   list._applyListStyles(size, list);
-    // }
     /**
      * Dispatches bubbling and composed custom event.
      * By default the event is cancelable until `cancelable` property is set to false.
@@ -1003,6 +1021,144 @@ the License.
       }
       this.project = project;
       return true;
+    }
+    /**
+     * Handler for `dragover` event on this element. If the dagged item is compatible
+     * it renders drop message.
+     * @param {DragEvent} e
+     */
+    _dragoverHandler(e) {
+      if (!this.draggableEnabled || e.defaultPrevented) {
+        return;
+      }
+      if (e.dataTransfer.types.indexOf('arc/request-object') === -1) {
+        return;
+      }
+      e.dataTransfer.dropEffect = this._computeDropEffect(e);
+      e.preventDefault();
+    }
+    /**
+     * Computes value fro `dropEffect` property of the `DragEvent`.
+     * @param {DragEvent} e
+     * @return {String} Either `copy` or `move`.
+     */
+    _computeDropEffect(e) {
+      let allowed = e.dataTransfer.effectAllowed;
+      if (!allowed) {
+        // this 2 operations are supported here
+        allowed = 'copyMove';
+      }
+      allowed = allowed.toLowerCase();
+      const isHistory = e.dataTransfer.types.indexOf('arc/history-request') !== -1;
+      if ((e.ctrlKey || e.metaKey) && !isHistory && allowed.indexOf('move') !== -1) {
+        return 'move';
+      } else {
+        return 'copy';
+      }
+    }
+    /**
+     * Handler for `drag` event on this element. If the dagged item is compatible
+     * it adds request to saved requests.
+     * @param {DragEvent} e
+     */
+    _dropHandler(e) {
+      if (!this.draggableEnabled || e.defaultPrevented) {
+        return;
+      }
+      if (e.dataTransfer.types.indexOf('arc/request-object') === -1) {
+        return;
+      }
+      e.preventDefault();
+      const data = e.dataTransfer.getData('arc/request-object');
+      if (!data) {
+        return;
+      }
+      const request = JSON.parse(data);
+      if (!request.projects) {
+        request.projects = [];
+      }
+      const existing = this.requests;
+      const order = existing && existing.length || 0;
+      let forceRequestUpdate;
+      const effect = this._computeDropEffect(e);
+      if (effect === 'move') {
+        forceRequestUpdate = this._handleMoveDrop(e, request);
+      }
+      this._insertRequestAt(order, request, forceRequestUpdate);
+    }
+    /**
+     * Handles logic when drop event is `move` in effect.
+     * Removes reference to old project (if exists). It uses `arc-source/project-detail`
+     * data from event which should hold project ID.
+     * @param {DragEvent} e
+     * @param {Object} request Request object
+     * @return {Boolean} True if the request object changed.
+     */
+    _handleMoveDrop(e, request) {
+      let projectId;
+      if (e.dataTransfer.types.indexOf('arc-source/project-menu') !== -1) {
+        projectId = e.dataTransfer.getData('arc-source/project-menu');
+      } else if (e.dataTransfer.types.indexOf('arc-source/project-detail') !== -1) {
+        projectId = e.dataTransfer.getData('arc-source/project-detail');
+      }
+      if (!projectId) {
+        return false;
+      }
+      const index = request.projects.indexOf(projectId);
+      if (index !== -1) {
+        request.projects.splice(index, 1);
+        return true;
+      }
+      return false;
+    }
+    /**
+     * Updates project and request objects and inserts the request at a position.
+     * @param {Number} index The position in requests order
+     * @param {Object} request Request to update
+     * @param {Boolean} forceRequestUpdate Forces update on request object even
+     * when position hasn't change.
+     * @return {Promise}
+     */
+    _insertRequestAt(index, request, forceRequestUpdate) {
+      if (request.type === 'history') {
+        delete request._rev;
+        const gen = document.createElement('uuid-generator');
+        request._id = gen.generate();
+      }
+      if (!request.name) {
+        request.name = 'Unnamed';
+      }
+      const project = this.project;
+      const id = request._id;
+      if (!project.requests) {
+        project.requests = [id];
+      } else {
+        const currentIndex = project.requests.indexOf(id);
+        if (currentIndex !== -1) {
+          project.requests.splice(currentIndex, 1);
+        }
+        project.requests.splice(index, 0, id);
+      }
+      if (!request.projects) {
+        request.projects = [];
+      }
+      let requestChanged = false;
+      if (request.projects.indexOf(project._id) === -1) {
+        request.projects.push(project._id);
+        requestChanged = true;
+      }
+      return this._dispatchProjectUpdate(project)
+      .then(() => {
+        if (requestChanged || forceRequestUpdate) {
+          const e = this._dispatch('save-request', {
+            request
+          });
+          return e.detail.result;
+        }
+      })
+      .catch((cause) => {
+        console.warn(cause);
+      });
     }
     /**
      * Fired when navigation was requested

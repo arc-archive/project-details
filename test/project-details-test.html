@@ -29,6 +29,12 @@
       </template>
     </test-fixture>
 
+    <test-fixture id="Draggable">
+      <template>
+        <project-details draggable-enabled no-auto-projects></project-details>
+      </template>
+    </test-fixture>
+
     <script>
     /* global DataGenerator, chance, DataHelper */
     suite('Initialization', () => {
@@ -507,7 +513,7 @@
     suite('openExportAll()', () => {
       let element;
       setup(() => {
-        element = fixture('Basic');
+        element = fixture('NoAuto');
       });
 
       test('Calls _closeMainMenu()', () => {
@@ -533,7 +539,7 @@
     suite('_cancelExportOptions()', () => {
       let element;
       setup(() => {
-        element = fixture('Basic');
+        element = fixture('NoAuto');
         element._exportOptionsOpened = true;
         element._exportItems = true;
       });
@@ -556,9 +562,15 @@
       }
 
       let element;
-      setup(() => {
-        element = fixture('Basic');
-        element.request = DataGenerator.generateRequests({requestsSize: 2});
+      setup((done) => {
+        element = fixture('NoAuto');
+        flush(() => {
+          const node = element.shadowRoot.querySelector('project-requests-list');
+          node.requests = DataGenerator.generateRequests({
+            requestsSize: 2
+          });
+          done();
+        });
         window.addEventListener('arc-data-export', handler);
       });
 
@@ -617,7 +629,7 @@
 
       let element;
       setup(() => {
-        element = fixture('Basic');
+        element = fixture('NoAuto');
         window.addEventListener('arc-data-export', handler);
       });
 
@@ -935,6 +947,440 @@
         })
         .then(() => {
           assert.deepEqual(spy.args[0][0], requests);
+        });
+      });
+    });
+
+    class MockedDataTransfer {
+      constructor() {
+        this._data = {};
+        this.effectAllowed = 'none';
+        this.dropEffect = 'none';
+      }
+      setData(type, data) {
+        this._data[type] = String(data);
+      }
+      getData(type) {
+        return this._data[type] || '';
+      }
+      get types() {
+        return Object.keys(this._data);
+      }
+    }
+
+    suite('_dragoverHandler()', () => {
+      let element;
+      setup(function(done) {
+        element = fixture('Draggable');
+        flush(() => {
+          const node = element.shadowRoot.querySelector('project-requests-list');
+          node.requests = DataGenerator.generateRequests({
+            requestsSize: 2
+          });
+          done();
+        });
+      });
+
+      function createEvent(types) {
+        if (!types) {
+          types = ['arc/request-object'];
+        }
+        const e = {
+          preventDefault: () => {
+            e.defaultPrevented = true;
+          },
+          defaultPrevented: false,
+          type: 'dragover',
+          dataTransfer: new MockedDataTransfer(),
+          path: []
+        };
+        types.forEach((type) => {
+          e.dataTransfer.setData(type, 'test');
+        });
+        return e;
+      }
+
+      test('Ignores event when draggableEnabled is not set', () => {
+        element.draggableEnabled = false;
+        element._dragoverHandler();
+        // no error
+      });
+
+      test('Ignores event when it is cancelled', () => {
+        const e = createEvent();
+        e.preventDefault();
+        element._dragoverHandler(e);
+        assert.equal(e.dataTransfer.dropEffect, 'none');
+      });
+
+      test('Ignores event when arc/request-object is not set', () => {
+        const e = createEvent(['other']);
+        element._dragoverHandler(e);
+        assert.equal(e.dataTransfer.dropEffect, 'none');
+      });
+
+      test('Cancels the event', () => {
+        const e = createEvent();
+        element._dragoverHandler(e);
+        assert.isTrue(e.defaultPrevented);
+      });
+
+      test('Calls _computeDropEffect()', () => {
+        const spy = sinon.spy(element, '_computeDropEffect');
+        const e = createEvent();
+        element._dragoverHandler(e);
+        assert.isTrue(spy.called);
+      });
+
+      test('Sets dropEffect on the event', () => {
+        const e = createEvent();
+        element._dragoverHandler(e);
+        assert.equal(e.dataTransfer.dropEffect, 'copy');
+      });
+    });
+
+    suite('_computeDropEffect()', () => {
+      let element;
+      setup(function() {
+        element = fixture('NoAuto');
+      });
+
+      function createEvent(types) {
+        if (!types) {
+          types = ['arc/request-object'];
+        }
+        const e = {
+          dataTransfer: new MockedDataTransfer()
+        };
+        types.forEach((type) => {
+          e.dataTransfer.setData(type, 'test');
+        });
+        return e;
+      }
+
+      test('Returns "copy" by default', () => {
+        const e = createEvent();
+        const result = element._computeDropEffect(e);
+        assert.equal(result, 'copy');
+      });
+
+      test('Returns "move" when configuration is set', () => {
+        const e = createEvent();
+        e.ctrlKey = true;
+        e.dataTransfer.effectAllowed = 'copyMove';
+        const result = element._computeDropEffect(e);
+        assert.equal(result, 'move');
+      });
+
+      test('Returns "copy" when a history item', () => {
+        const e = createEvent(['arc/request-object', 'arc/history-request']);
+        e.ctrlKey = true;
+        e.dataTransfer.effectAllowed = 'copyMove';
+        const result = element._computeDropEffect(e);
+        assert.equal(result, 'copy');
+      });
+
+      test('Returns "copy" when effectAllowed is not move', () => {
+        const e = createEvent();
+        e.ctrlKey = true;
+        e.dataTransfer.effectAllowed = 'link';
+        const result = element._computeDropEffect(e);
+        assert.equal(result, 'copy');
+      });
+    });
+
+    suite('_dropHandler()', () => {
+      function projectHandler(e) {
+        e.preventDefault();
+        e.detail.result = Promise.resolve({});
+      }
+
+      function requestHandler(e) {
+        e.preventDefault();
+        e.detail.result = Promise.resolve();
+      }
+
+      suiteSetup(() => {
+        document.body.addEventListener('project-object-changed', projectHandler);
+        document.body.addEventListener('save-request', requestHandler);
+      });
+
+      suiteTeardown(() => {
+        document.body.removeEventListener('project-object-changed', projectHandler);
+        document.body.removeEventListener('save-request', requestHandler);
+      });
+
+      let element;
+      setup(function(done) {
+        element = fixture('Draggable');
+        element.project = {
+          _id: 'test-project'
+        };
+        flush(() => {
+          const node = element.shadowRoot.querySelector('project-requests-list');
+          node.requests = DataGenerator.generateRequests({
+            requestsSize: 4
+          });
+          done();
+        });
+      });
+
+      function dispatch(element, types, content) {
+        if (!types) {
+          types = ['arc/request-object'];
+        }
+        if (content === undefined) {
+          content = '{"_id":"test-id", "_rev":"test-rev"}';
+        }
+        const e = new Event('drop', {cancelable: true});
+        e.dataTransfer = new MockedDataTransfer();
+        types.forEach((type) => {
+          e.dataTransfer.setData(type, content);
+        });
+        element.dispatchEvent(e);
+        return e;
+      }
+
+      test('Ignores event when draggableEnabled is not set', () => {
+        element.draggableEnabled = false;
+        element._dropHandler();
+        // no error
+      });
+
+      test('Ignores event when arc/request-object is not set', () => {
+        dispatch(element, ['other']);
+        assert.isFalse(element.classList.contains('drop-target'));
+      });
+
+      test('Cancels the event', () => {
+        const e = dispatch(element);
+        assert.isTrue(e.defaultPrevented);
+      });
+
+      test('Calls _computeDropEffect()', () => {
+        const spy = sinon.spy(element, '_computeDropEffect');
+        dispatch(element);
+        assert.isTrue(spy.called);
+      });
+
+      test('Calls _insertRequestAt()', () => {
+        const spy = sinon.spy(element, '_insertRequestAt');
+        dispatch(element);
+        assert.isTrue(spy.called);
+      });
+
+      test('Sets drop order', () => {
+        const spy = sinon.spy(element, '_insertRequestAt');
+        dispatch(element);
+        assert.equal(spy.args[0][0], element.requests.length);
+      });
+
+      test('Calls _handleMoveDrop()', () => {
+        const spy = sinon.spy(element, '_handleMoveDrop');
+        element._computeDropEffect = () => 'move';
+        dispatch(element);
+        assert.isTrue(spy.called);
+      });
+    });
+
+    suite('_handleMoveDrop()', () => {
+      let element;
+      setup(function() {
+        element = fixture('NoAuto');
+      });
+      function createEvent(types) {
+        const _types = types;
+        const e = {
+          dataTransfer: {
+            types: Object.keys(types),
+            getData: (type) => _types[type]
+          }
+        };
+        return e;
+      }
+
+      test('Returns false when project id not found', () => {
+        const e = createEvent({
+          'arc-source/project-detail': 'test'
+        });
+        const result = element._handleMoveDrop(e, {
+          projects: []
+        });
+        assert.isFalse(result);
+      });
+
+      test('Returns true when removing project from arc-source/project-menu', () => {
+        const e = createEvent({
+          'arc-source/project-menu': 'project-id'
+        });
+        const result = element._handleMoveDrop(e, {
+          projects: ['project-id']
+        });
+        assert.isTrue(result);
+      });
+
+      test('Returns true when removing project from arc-source/project-detail', () => {
+        const e = createEvent({
+          'arc-source/project-detail': 'project-id'
+        });
+        const result = element._handleMoveDrop(e, {
+          projects: ['project-id']
+        });
+        assert.isTrue(result);
+      });
+
+      test('Returns false when project is not set on request', () => {
+        const e = createEvent({
+          'arc-source/project-detail': 'project-id'
+        });
+        const result = element._handleMoveDrop(e, {
+          projects: ['']
+        });
+        assert.isFalse(result);
+      });
+    });
+
+    suite('_insertRequestAt()', () => {
+      function projectHandler(e) {
+        e.preventDefault();
+        e.detail.result = Promise.resolve({});
+      }
+
+      function requestHandler(e) {
+        e.preventDefault();
+        e.detail.result = Promise.resolve();
+      }
+
+      suiteSetup(() => {
+        document.body.addEventListener('project-object-changed', projectHandler);
+        document.body.addEventListener('save-request', requestHandler);
+      });
+
+      suiteTeardown(() => {
+        document.body.removeEventListener('project-object-changed', projectHandler);
+        document.body.removeEventListener('save-request', requestHandler);
+      });
+
+      let element;
+      setup(function(done) {
+        element = fixture('Draggable');
+        element.project = {
+          _id: 'test-project'
+        };
+        flush(() => {
+          const node = element.shadowRoot.querySelector('project-requests-list');
+          node.requests = DataGenerator.generateRequests({
+            requestsSize: 4
+          });
+          done();
+        });
+      });
+
+      test('Removes _rev from history object', () => {
+        const request = DataGenerator.generateHistoryObject();
+        return element._insertRequestAt(0, request)
+        .then(() => {
+          assert.isUndefined(request._rev);
+        });
+      });
+
+      test('Regenerates _id on history object', () => {
+        const request = DataGenerator.generateHistoryObject();
+        const id = request._id;
+        return element._insertRequestAt(0, request)
+        .then(() => {
+          assert.typeOf(request._id, 'string');
+          assert.notEqual(request._it, id);
+        });
+      });
+
+      test('Adds default name', () => {
+        const request = DataGenerator.generateHistoryObject();
+        return element._insertRequestAt(0, request)
+        .then(() => {
+          assert.equal(request.name, 'Unnamed');
+        });
+      });
+
+      test('Sets requests array on the project', () => {
+        const request = DataGenerator.generateHistoryObject();
+        return element._insertRequestAt(0, request)
+        .then(() => {
+          assert.deepEqual(element.project.requests, [request._id]);
+        });
+      });
+
+      test('Adds request to the array', () => {
+        element.project.requests = ['test'];
+        const request = DataGenerator.generateSavedItem();
+        return element._insertRequestAt(1, request)
+        .then(() => {
+          assert.deepEqual(element.project.requests, ['test', request._id]);
+        });
+      });
+
+      test('Replaces request position', () => {
+        const request = DataGenerator.generateSavedItem();
+        element.project.requests = ['test', request._id, 'other'];
+        return element._insertRequestAt(0, request)
+        .then(() => {
+          assert.deepEqual(element.project.requests, [request._id, 'test', 'other']);
+        });
+      });
+
+      test('Creates projects list on the request', () => {
+        const request = DataGenerator.generateSavedItem();
+        return element._insertRequestAt(0, request)
+        .then(() => {
+          assert.deepEqual(request.projects, [element.project._id]);
+        });
+      });
+
+      test('Adds project to the list of projects', () => {
+        const request = DataGenerator.generateSavedItem();
+        request.projects = ['other'];
+        return element._insertRequestAt(0, request)
+        .then(() => {
+          assert.deepEqual(request.projects, ['other', element.project._id]);
+        });
+      });
+
+      test('Calls _dispatchProjectUpdate()', () => {
+        const spy = sinon.spy(element, '_dispatchProjectUpdate');
+        const request = DataGenerator.generateSavedItem();
+        return element._insertRequestAt(0, request)
+        .then(() => {
+          assert.isTrue(spy.called);
+        });
+      });
+
+      test('Calls _dispatch() for save-request', () => {
+        const spy = sinon.spy(element, '_dispatch');
+        const request = DataGenerator.generateSavedItem();
+        return element._insertRequestAt(0, request)
+        .then(() => {
+          assert.equal(spy.args[1][0], 'save-request');
+          assert.deepEqual(spy.args[1][1].request, request);
+        });
+      });
+
+      test('Won\'t call _dispatch() for save-request when project already set', () => {
+        const spy = sinon.spy(element, '_dispatch');
+        const request = DataGenerator.generateSavedItem();
+        request.projects = [element.project._id];
+        return element._insertRequestAt(0, request)
+        .then(() => {
+          assert.isUndefined(spy.args[1]);
+        });
+      });
+
+      test('Call _dispatch() for save-request when forced', () => {
+        const spy = sinon.spy(element, '_dispatch');
+        const request = DataGenerator.generateSavedItem();
+        request.projects = [element.project._id];
+        return element._insertRequestAt(0, request, true)
+        .then(() => {
+          assert.typeOf(spy.args[1], 'array');
         });
       });
     });
