@@ -174,17 +174,16 @@ the License.
       </template>
     </div>
 
-    <div hidden$="[[!_hasRequests]]">
-      <project-requests-list
-        has-requests="{{_hasRequests}}"
-        project="[[project]]"
-        on-list-items-delete="_onDelete"
-        on-list-item-open="_onOpen"
-        on-list-items-export="_onExport"
-        on-list-item-details="_onDetails"
-        list-type="[[listType]]"
-        draggable-enabled="[[draggableEnabled]]"></project-requests-list>
-    </div>
+    <project-requests-list
+      hidden$="[[!_hasRequests]]"
+      has-requests="{{_hasRequests}}"
+      project="[[project]]"
+      on-list-items-delete="_onDelete"
+      on-list-item-open="_onOpen"
+      on-list-items-export="_onExport"
+      on-list-item-details="_onDetails"
+      list-type="[[listType]]"
+      draggable-enabled="[[draggableEnabled]]"></project-requests-list>
 
     <template is="dom-if" if="[[!_hasRequests]]">
       <p class="no-requests">This project has no requests. <paper-button on-click="_deleteEmpty" class="primary-button" raised>Delete project</paper-button></p>
