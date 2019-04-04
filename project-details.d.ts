@@ -5,33 +5,12 @@
  *   https://github.com/Polymer/tools/tree/master/packages/gen-typescript-declarations
  *
  * To modify these typings, edit the source file(s):
- *   project-details.html
+ *   project-details.js
  */
 
 
 // tslint:disable:variable-name Describing an API that's defined elsewhere.
 // tslint:disable:no-any describes the API as best we are able today
-
-/// <reference path="../polymer/types/polymer-element.d.ts" />
-/// <reference path="../project-requests-list/project-requests-list.d.ts" />
-/// <reference path="../paper-toast/paper-toast.d.ts" />
-/// <reference path="../paper-button/paper-button.d.ts" />
-/// <reference path="../paper-icon-button/paper-icon-button.d.ts" />
-/// <reference path="../paper-menu-button/paper-menu-button.d.ts" />
-/// <reference path="../paper-listbox/paper-listbox.d.ts" />
-/// <reference path="../paper-item/paper-icon-item.d.ts" />
-/// <reference path="../paper-dialog/paper-dialog.d.ts" />
-/// <reference path="../arc-icons/arc-icons.d.ts" />
-/// <reference path="../bottom-sheet/bottom-sheet.d.ts" />
-/// <reference path="../saved-request-detail/saved-request-detail.d.ts" />
-/// <reference path="../saved-request-editor/saved-request-editor.d.ts" />
-/// <reference path="../paper-fab/paper-fab.d.ts" />
-/// <reference path="../marked-element/marked-element.d.ts" />
-/// <reference path="../markdown-styles/markdown-styles.d.ts" />
-/// <reference path="../export-options/export-options.d.ts" />
-/// <reference path="../paper-styles/shadow.d.ts" />
-/// <reference path="../uuid-generator/uuid-generator.d.ts" />
-/// <reference path="project-details-editor.d.ts" />
 
 declare namespace UiElements {
 
@@ -89,7 +68,7 @@ declare namespace UiElements {
    * `--warning-contrast-color` | Contrast color for the warning color | `#fff`
    * `--error-toast` | Mixin applied to the error toast | `{}`
    */
-  class ProjectDetails extends Polymer.Element {
+  class ProjectDetails extends PolymerElement {
     readonly requests: any;
 
     /**
@@ -419,6 +398,11 @@ declare namespace UiElements {
   }
 }
 
-interface HTMLElementTagNameMap {
-  "project-details": UiElements.ProjectDetails;
+declare global {
+
+  interface HTMLElementTagNameMap {
+    "project-details": UiElements.ProjectDetails;
+  }
 }
+
+export {};

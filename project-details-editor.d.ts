@@ -5,24 +5,18 @@
  *   https://github.com/Polymer/tools/tree/master/packages/gen-typescript-declarations
  *
  * To modify these typings, edit the source file(s):
- *   project-details-editor.html
+ *   project-details-editor.js
  */
 
 
 // tslint:disable:variable-name Describing an API that's defined elsewhere.
-
-/// <reference path="../polymer/types/polymer-element.d.ts" />
-/// <reference path="../paper-input/paper-input.d.ts" />
-/// <reference path="../paper-input/paper-textarea.d.ts" />
-/// <reference path="../paper-button/paper-button.d.ts" />
-/// <reference path="../paper-toast/paper-toast.d.ts" />
 
 declare namespace UiElements {
 
   /**
    * An element to render project details editor.
    */
-  class ProjectDetailsEditor extends Polymer.Element {
+  class ProjectDetailsEditor extends PolymerElement {
 
     /**
      * Name of the project.
@@ -46,6 +40,11 @@ declare namespace UiElements {
   }
 }
 
-interface HTMLElementTagNameMap {
-  "project-details-editor": UiElements.ProjectDetailsEditor;
+declare global {
+
+  interface HTMLElementTagNameMap {
+    "project-details-editor": UiElements.ProjectDetailsEditor;
+  }
 }
+
+export {};
