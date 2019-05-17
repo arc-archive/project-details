@@ -670,7 +670,7 @@
 
       test('Returns default name when no project', () => {
         const result = element._generateFileName();
-        assert.equal(result, 'arc-project-export.json');
+        assert.equal(result, 'arc-project-export.arc');
       });
 
       test('Returns project name', () => {
@@ -678,7 +678,7 @@
           name: 'test name'
         };
         const result = element._generateFileName();
-        assert.equal(result, 'test-name.json');
+        assert.equal(result, 'test-name.arc');
       });
     });
 

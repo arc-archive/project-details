@@ -740,13 +740,13 @@ class ProjectDetails extends PolymerElement {
     const project = this.project;
     let name = project && project.name;
     if (!name) {
-      name = 'arc-project-export.json';
+      name = 'arc-project-export.arc';
     } else {
       name = name.toLowerCase().replace(/\s/g, '-');
       if (name[name.length - 1] !== '.') {
         name += '.';
       }
-      name += 'json';
+      name += 'arc';
     }
     return name;
   }
