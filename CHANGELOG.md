@@ -189,3 +189,7 @@
 
 
 
+# [3.0.0](https://github.com/advanced-rest-client/project-details/compare/0.1.9...3.0.0) (2019-09-15)
+
+
+
