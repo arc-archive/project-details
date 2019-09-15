@@ -5,10 +5,10 @@
  *   https://github.com/Polymer/tools/tree/master/packages/gen-typescript-declarations
  *
  * To modify these typings, edit the source file(s):
- *   project-details.js
+ *   src/ListStyles.js
  */
 
 
 // tslint:disable:variable-name Describing an API that's defined elsewhere.
 
-import {ProjectDetails} from './src/ProjectDetails.js';
+import {css} from 'lit-element';

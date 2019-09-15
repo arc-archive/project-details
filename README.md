@@ -7,17 +7,7 @@
 
 # project-details
 
-A project details panel for the Advanced REST Client.
-
-## Example:
-
-```html
-<project-details></project-details>
-```
-
-## API components
-
-This components is a part of [API components ecosystem](https://elements.advancedrestclient.com/)
+A project details screen for the Advanced REST Client.
 
 ## Usage
 
@@ -26,54 +16,42 @@ This components is a part of [API components ecosystem](https://elements.advance
 npm install --save @advanced-rest-client/project-details
 ```
 
-### In an html file
-
-```html
-<html>
-  <head>
-    <script type="module">
-      import './node_modules/@advanced-rest-client/project-details/project-details.js';
-    </script>
-  </head>
-  <body>
-    <project-details></project-details>
-  </body>
-</html>
-```
-
-### In a Polymer 3 element
+### In a LitElement
 
 ```js
-import {PolymerElement, html} from './node_modules/@polymer/polymer/polymer-element.js';
-import './node_modules/@advanced-rest-client/project-details/project-details.js';
+import { LitElement, html } from 'lit-element';
+import '@advanced-rest-client/project-details/project-details.js';
 
-class SampleElement extends PolymerElement {
-  static get template() {
+class SampleElement extends LitElement {
+  render() {
     return html`
-    <project-details></project-details>
+    <project-details .projectId="${pId}" draggableenabled></project-details>
     `;
   }
 }
 customElements.define('sample-element', SampleElement);
 ```
 
-### Installation
+## Development
 
 ```sh
 git clone https://github.com/advanced-rest-client/project-details
-cd api-url-editor
+cd project-details
 npm install
-npm install -g polymer-cli
 ```
 
 ### Running the demo locally
 
 ```sh
-polymer serve --npm
-open http://127.0.0.1:<port>/demo/
+npm start
 ```
 
 ### Running the tests
+
 ```sh
-polymer test --npm
+npm test
 ```
+
+## API components
+
+This components is a part of [API components ecosystem](https://elements.advancedrestclient.com/)

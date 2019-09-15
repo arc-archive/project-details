@@ -11,40 +11,4 @@
 
 // tslint:disable:variable-name Describing an API that's defined elsewhere.
 
-declare namespace UiElements {
-
-  /**
-   * An element to render project details editor.
-   */
-  class ProjectDetailsEditor extends PolymerElement {
-
-    /**
-     * Name of the project.
-     */
-    name: string|null|undefined;
-
-    /**
-     * The description of the project
-     */
-    description: string|null|undefined;
-
-    /**
-     * Sends the `cancel-edit` custom event to the parent element.
-     */
-    cancel(): void;
-
-    /**
-     * Sends the `save-edit` custom event to the parent element.
-     */
-    save(): void;
-  }
-}
-
-declare global {
-
-  interface HTMLElementTagNameMap {
-    "project-details-editor": UiElements.ProjectDetailsEditor;
-  }
-}
-
-export {};
+import {ProjectDetailsEditor} from './src/ProjectDetailsEditor.js';
