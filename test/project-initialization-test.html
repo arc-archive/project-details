@@ -3,9 +3,13 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, minimum-scale=1.0, initial-scale=1.0, user-scalable=yes">
-    <script src="../../webcomponentsjs/webcomponents-loader.js"></script>
-    <script src="../../web-component-tester/browser.js"></script>
-    <link rel="import" href="../project-details.html">
+
+    <script src="../../../@webcomponents/webcomponentsjs/webcomponents-loader.js"></script>
+    <script src="../../../@polymer/test-fixture/test-fixture.js"></script>
+    <script src="../../../mocha/mocha.js"></script>
+    <script src="../../../chai/chai.js"></script>
+    <script src="../../../wct-mocha/wct-mocha.js"></script>
+
   </head>
   <body>
     <test-fixture id="Basic">
@@ -20,7 +24,8 @@
       </template>
     </test-fixture>
 
-    <script>
+    <script type="module">
+    import '../project-details.js';
     suite('_projectIdChanged()', () => {
       let element;
       setup(function() {
