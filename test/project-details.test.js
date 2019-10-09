@@ -152,12 +152,11 @@ describe('<project-details>', function() {
           id: 'test'
         });
       });
-      element._doExportItems(true, {
+      await element._doExportItems(true, {
         options: {
           provider: 'drive'
         }
       });
-      await aTimeout();
       const toast = element.shadowRoot.querySelector('#driveSaved');
       assert.isTrue(toast.opened);
     });
