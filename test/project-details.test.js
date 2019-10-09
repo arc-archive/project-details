@@ -17,6 +17,12 @@ describe('<project-details>', function() {
     ></project-details>`);
   }
 
+  async function exportEncryptFixture() {
+    return await fixture(html`<project-details
+      withEncrypt
+    ></project-details>`);
+  }
+
   describe('basic', function() {
     let element;
     beforeEach(async () => {
@@ -684,6 +690,14 @@ describe('<project-details>', function() {
       const projects = await DataGenerator.getDatastoreProjectsData();
       assert.equal(projects[0].requests[1], id);
       assert.lengthOf(projects[0].requests, 4);
+    });
+  });
+
+  describe('Export encryption', () => {
+    it('Enables encryption option', async () => {
+      const element = await exportEncryptFixture();
+      const node = element.shadowRoot.querySelector('export-options');
+      assert.isTrue(node.withEncrypt);
     });
   });
 });

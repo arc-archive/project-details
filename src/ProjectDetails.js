@@ -130,6 +130,11 @@ export class ProjectDetails extends ProjectBase {
        */
       noAutoProjects: Boolean,
       /**
+       * When set is enables encryption options.
+       * Currently only in the export panel.
+       */
+      withEncrypt: { type: Boolean },
+      /**
        * Indicates that the export options panel is currently rendered.
        */
       _exportOptionsOpened: Boolean,
@@ -872,7 +877,8 @@ export class ProjectDetails extends ProjectBase {
     const {
       _exportOptionsOpened,
       _exportOptions,
-      compatibility
+      compatibility,
+      withEncrypt
     } = this;
     return html`<bottom-sheet
       id="exportOptionsContainer"
@@ -882,6 +888,7 @@ export class ProjectDetails extends ProjectBase {
       @overlay-closed="${this._sheetOpenedHandler}">
       <export-options
         ?compatibility="${compatibility}"
+        ?withEncrypt="${withEncrypt}"
         .file="${_exportOptions.file}"
         .provider="${_exportOptions.provider}"
         .providerOptions="${_exportOptions.providerOptions}"
